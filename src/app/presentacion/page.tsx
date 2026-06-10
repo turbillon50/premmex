@@ -483,8 +483,8 @@ header .desk-nav button { background: none; border: none; cursor: pointer; font-
 .tl-card p { font-size: 14.5px; line-height: 1.55; }
 .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 44px; padding-top: 22px; border-top: 1px solid; font-size: 13px; }
 @media (max-width: 900px) {
-  .desk-nav { display: none; }
-  .mobile-only { display: grid; }
+  header .desk-nav { display: none !important; }
+  header .mobile-only { display: grid !important; }
   .grid3, .grid2, .flow { grid-template-columns: 1fr; }
   .split { grid-template-columns: 1fr; }
 }
