@@ -14,7 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="icon" href="/icon.png" />
         <link rel="apple-touch-icon" href="/icon.png" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <meta name="theme-color" content="#0A0A0A" /><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
       <body>{children}</body>
     </html>
