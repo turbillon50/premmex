@@ -1,261 +1,313 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import Link from 'next/link'
 
+/* ============ THEME ============ */
+function useTheme() {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  useEffect(() => {
+    const saved = (typeof window !== 'undefined' && localStorage.getItem('pmx_theme')) as
+      | 'light'
+      | 'dark'
+      | null
+    const initial = saved || 'light'
+    setTheme(initial)
+    document.documentElement.setAttribute('data-theme', initial)
+  }, [])
+  const toggle = () => {
+    setTheme(prev => {
+      const next = prev === 'light' ? 'dark' : 'light'
+      document.documentElement.setAttribute('data-theme', next)
+      try { localStorage.setItem('pmx_theme', next) } catch {}
+      return next
+    })
+  }
+  return { theme, toggle }
+}
+
+/* ============ ICONS (SVG propios inline) ============ */
+type IP = { s?: number; c?: string }
+const Ic = {
+  globe: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18" /></svg>
+  ),
+  user: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg>
+  ),
+  gear: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.5-2-3.4-2.3 1a7.5 7.5 0 0 0-1.7-1l-.3-2.6H10.9l-.3 2.6a7.5 7.5 0 0 0-1.7 1l-2.3-1-2 3.4L4.6 11a7.5 7.5 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7.5 7.5 0 0 0 1.7 1l.3 2.6h3.2l.3-2.6a7.5 7.5 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5Z" /></svg>
+  ),
+  phone: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3h3.5l1.5 5-2 1.5a13 13 0 0 0 5.5 5.5l1.5-2 5 1.5V21a1 1 0 0 1-1.1 1A18 18 0 0 1 4 5.1 1 1 0 0 1 5 3Z" /></svg>
+  ),
+  chat: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v11H9l-4 4V5Z" /></svg>
+  ),
+  money: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="12" rx="2" /><circle cx="12" cy="12" r="2.5" /><path d="M6 9v6M18 9v6" /></svg>
+  ),
+  check: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12.5 9.5 18 20 6.5" /></svg>
+  ),
+  sun: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+  ),
+  moon: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8Z" /></svg>
+  ),
+  shield: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v6c0 5-3.4 8-8 9-4.6-1-8-4-8-9V6l8-3Z" /><path d="M8.5 12l2.5 2.5L16 9" /></svg>
+  ),
+  doc: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2h8l4 4v16H6V2Z" /><path d="M14 2v4h4M9 13h6M9 17h6" /></svg>
+  ),
+  chart: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-7" /></svg>
+  ),
+  team: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="9" r="3" /><circle cx="17" cy="10" r="2.5" /><path d="M2 20c0-3 2.7-5 6-5s6 2 6 5M15 20c0-2 1-3.5 3-3.5s4 1.5 4 3.5" /></svg>
+  ),
+  map: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" /><path d="M9 4v14M15 6v14" /></svg>
+  ),
+  bell: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6 2 6H4s2-1 2-6Z" /><path d="M10 20a2 2 0 0 0 4 0" /></svg>
+  ),
+  undo: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 7 4 12l5 5M4 12h11a5 5 0 0 1 0 10" /></svg>
+  ),
+  leaf: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20C4 11 10 4 20 4c0 10-7 16-16 16Z" /><path d="M4 20c4-7 8-10 12-12" /></svg>
+  ),
+  arrow: ({ s = 18, c = 'currentColor' }: IP) => (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+  ),
+}
+
+/* ============ BRAND MARK ============ */
+function Mark({ s = 28 }: { s?: number }) {
+  return (
+    <svg width={s} height={s} viewBox="0 0 48 48" fill="none">
+      <path d="M24 6 L24 42" stroke="var(--brand)" strokeWidth="2" strokeLinecap="round" />
+      <path d="M13 16 Q24 7 35 16" stroke="var(--brand)" strokeWidth="2" strokeLinecap="round" fill="none" />
+      <path d="M13 31 Q24 41 35 31" stroke="var(--brand-2)" strokeWidth="2" strokeLinecap="round" fill="none" />
+      <circle cx="24" cy="24" r="3.4" fill="var(--brand)" />
+    </svg>
+  )
+}
+
+function ThemeBtn({ theme, toggle }: { theme: 'light' | 'dark'; toggle: () => void }) {
+  return (
+    <button onClick={toggle} aria-label="Cambiar tema" className="theme-btn">
+      {theme === 'light' ? <Ic.moon s={17} /> : <Ic.sun s={17} />}
+    </button>
+  )
+}
+
+/* ============ ROOT ============ */
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true)
-  const [mode, setMode] = useState<'publico'|'usuario'|'admin'>('publico')
+  const [mode, setMode] = useState<'publico' | 'usuario' | 'admin'>('publico')
+  const { theme, toggle } = useTheme()
 
   useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 2800)
+    const t = setTimeout(() => setShowSplash(false), 2500)
     return () => clearTimeout(t)
   }, [])
 
-  const modeColors = { publico: '#C9A84C', usuario: '#4CAF50', admin: '#9C27B0' }
+  const modeMeta = {
+    publico: { c: 'var(--brand)', label: 'Público', I: Ic.globe },
+    usuario: { c: '#0EA5E9', label: 'Cobrador', I: Ic.user },
+    admin: { c: '#7C3AED', label: 'Admin', I: Ic.gear },
+  } as const
 
   return (
     <>
       <AnimatePresence>
         {showSplash && (
-          <motion.div
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8 }}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-            style={{ background: '#0A0A0A' }}
-          >
-            <motion.div
-              initial={{ scale: 0.7, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.3, duration: 0.7, ease: 'easeOut' }}
-              className="flex flex-col items-center gap-6"
-            >
+          <motion.div initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.7 }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center" style={{ background: 'var(--bg)' }}>
+            <motion.div initial={{ scale: 0.7, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }} className="flex flex-col items-center gap-5">
               <div className="relative w-24 h-24">
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                  className="absolute inset-0 rounded-full"
-                  style={{ border: '2px solid transparent', borderTopColor: '#C9A84C' }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
-                    <path d="M24 6 L24 42" stroke="#C9A84C" strokeWidth="1.5" strokeLinecap="round"/>
-                    <path d="M14 16 Q24 6 34 16" stroke="#C9A84C" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                    <path d="M14 32 Q24 42 34 32" stroke="#C9A84C" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                    <circle cx="24" cy="24" r="3" fill="#C9A84C"/>
-                  </svg>
-                </div>
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }}
+                  className="absolute inset-0 rounded-full" style={{ border: '2px solid transparent', borderTopColor: 'var(--brand)', borderRightColor: 'var(--brand-2)' }} />
+                <div className="absolute inset-0 flex items-center justify-center"><Mark s={46} /></div>
               </div>
-              <motion.h1
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="text-4xl font-serif tracking-[0.3em] shimmer-text"
-              >
-                PREMMEX
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.6 }}
-                transition={{ delay: 0.9 }}
-                className="text-xs tracking-[0.25em] text-stone-400 uppercase"
-              >
-                Previsión · Mutual · de · México
-              </motion.p>
+              <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+                className="text-4xl font-serif tracking-[0.28em]" style={{ color: 'var(--text)' }}>PREMMEX</motion.h1>
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 0.7 }} transition={{ delay: 0.8 }}
+                className="text-xs tracking-[0.25em] uppercase" style={{ color: 'var(--brand)' }}>Previsión · Mutual · de · México</motion.p>
             </motion.div>
-            <motion.div
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ delay: 1.2, duration: 1.2, ease: 'easeInOut' }}
-              className="absolute bottom-12 h-px w-48"
-              style={{ background: 'linear-gradient(90deg, transparent, #C9A84C, transparent)', transformOrigin: 'left' }}
-            />
+            <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 1, duration: 1.2, ease: 'easeInOut' }}
+              className="absolute bottom-12 h-[3px] w-48 rounded-full" style={{ background: 'linear-gradient(90deg, transparent, var(--brand), var(--brand-2), transparent)', transformOrigin: 'left' }} />
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* MODE SWITCHER */}
-      <motion.div
-        initial={{ y: 100 }}
-        animate={{ y: 0 }}
-        transition={{ delay: 3, duration: 0.5 }}
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 glass rounded-full px-2 py-2 flex gap-1 shadow-2xl"
-        style={{ minWidth: '280px' }}
-      >
-        {(['publico','usuario','admin'] as const).map(m => (
-          <button
-            key={m}
-            onClick={() => setMode(m)}
-            className="flex-1 px-3 py-2 rounded-full text-xs font-medium transition-all duration-300"
-            style={{
-              background: mode === m ? modeColors[m] : 'transparent',
-              color: mode === m ? '#0A0A0A' : '#9A9A9A',
-            }}
-          >
-            {m === 'publico' ? '🌐 Público' : m === 'usuario' ? '👤 Cobrador' : '⚙️ Admin'}
-          </button>
-        ))}
+      <motion.div initial={{ y: 100 }} animate={{ y: 0 }} transition={{ delay: 2.7, duration: 0.5 }}
+        className="fixed bottom-5 left-1/2 -translate-x-1/2 z-40 switcher" style={{ minWidth: '300px' }}>
+        {(['publico', 'usuario', 'admin'] as const).map(m => {
+          const M = modeMeta[m]
+          return (
+            <button key={m} onClick={() => setMode(m)} className="switcher-btn"
+              style={{ background: mode === m ? M.c : 'transparent', color: mode === m ? '#fff' : 'var(--text-soft)' }}>
+              <M.I s={15} c={mode === m ? '#fff' : 'var(--text-soft)'} />
+              <span>{M.label}</span>
+            </button>
+          )
+        })}
       </motion.div>
 
-      {mode === 'publico' && <PublicoView />}
-      {mode === 'usuario' && <CobradorView />}
-      {mode === 'admin' && <AdminView />}
+      {mode === 'publico' && <PublicoView theme={theme} toggle={toggle} onDemo={() => setMode('usuario')} />}
+      {mode === 'usuario' && <CobradorView theme={theme} toggle={toggle} />}
+      {mode === 'admin' && <AdminView theme={theme} toggle={toggle} />}
     </>
   )
 }
 
-function PublicoView() {
+/* ============ PÚBLICO ============ */
+function PublicoView({ theme, toggle, onDemo }: { theme: 'light' | 'dark'; toggle: () => void; onDemo: () => void }) {
   const stats = [
     { label: 'Familias protegidas', value: '12,400+' },
     { label: 'Años de experiencia', value: '28' },
     { label: 'Estados con cobertura', value: '18' },
   ]
   const planes = [
-    { name: 'Serenidad Básico', price: '$15,000', monthly: '$1,500/mes', features: ['Traslado local','Velación 24h','Ataúd digno','Trámites legales'], color: '#9A9A9A' },
-    { name: 'Paz Familiar', price: '$28,000', monthly: '$2,800/mes', features: ['Traslado ilimitado','Velación 48h','Ataúd premium','Flores y recordatorios'], color: '#C9A84C', featured: true },
-    { name: 'Eternidad Plus', price: '$45,000', monthly: '$4,500/mes', features: ['Traslado nacional','72h velación','Ataúd de lujo','Transmisión + Nicho'], color: '#E8C97A' },
+    { name: 'Serenidad', price: '$15,000', monthly: '$1,500/mes', features: ['Traslado local', 'Velación 24h', 'Ataúd digno', 'Trámites legales'] },
+    { name: 'Paz Familiar', price: '$28,000', monthly: '$2,800/mes', features: ['Traslado ilimitado', 'Velación 48h', 'Ataúd premium', 'Flores y recordatorios'], featured: true },
+    { name: 'Eternidad Plus', price: '$45,000', monthly: '$4,500/mes', features: ['Traslado nacional', 'Velación 72h', 'Ataúd de lujo', 'Transmisión + Nicho'] },
   ]
-  const [activeTab, setActiveTab] = useState(0)
+  const [toast, setToast] = useState(false)
+  const [form, setForm] = useState({ nombre: '', email: '', whatsapp: '' })
+  const submit = (e: React.FormEvent) => { e.preventDefault(); setToast(true); setForm({ nombre: '', email: '', whatsapp: '' }); setTimeout(() => setToast(false), 3200) }
 
   return (
-    <div className="min-h-screen" style={{ background: '#0A0A0A' }}>
-      {/* NAV */}
-      <nav className="fixed top-0 left-0 right-0 z-30 px-6 py-4 flex items-center justify-between"
-        style={{ background: 'rgba(10,10,10,0.8)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
-        <div className="font-serif text-lg shimmer-text tracking-widest">PREMMEX</div>
-        <div className="flex items-center gap-6">
-          <a href="#planes" className="text-xs text-stone-400 nav-item hidden md:block">Planes</a>
-          <a href="#contacto" className="text-xs text-stone-400 nav-item hidden md:block">Contacto</a>
-          <button className="px-4 py-1.5 rounded-full text-xs font-medium"
-            style={{ background: 'rgba(201,168,76,0.15)', color: '#C9A84C', border: '1px solid rgba(201,168,76,0.3)' }}>
-            Mi contrato
-          </button>
+    <div className="min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+      <nav className="fixed top-0 left-0 right-0 z-30 px-5 md:px-8 py-3.5 flex items-center justify-between nav-bar">
+        <div className="flex items-center gap-2.5"><Mark s={26} /><span className="font-serif text-lg tracking-widest" style={{ color: 'var(--text)' }}>PREMMEX</span></div>
+        <div className="flex items-center gap-3 md:gap-5">
+          <a href="#planes" className="text-sm hidden md:block nav-link">Planes</a>
+          <a href="#registro" className="text-sm hidden md:block nav-link">Contratar</a>
+          <ThemeBtn theme={theme} toggle={toggle} />
+          <button onClick={onDemo} className="btn-ghost text-xs">Mi contrato</button>
         </div>
       </nav>
 
       {/* HERO */}
-      <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-6 pt-20">
-        <div className="absolute inset-0"
-          style={{ backgroundImage: 'radial-gradient(ellipse at 50% 40%, rgba(201,168,76,0.07) 0%, transparent 65%)' }}/>
-        
-        <motion.div initial={{ opacity:0,y:30 }} animate={{ opacity:1,y:0 }} transition={{ delay:2.9,duration:0.8 }}
+      <header className="relative min-h-[92vh] flex flex-col items-center justify-center overflow-hidden px-6 pt-24 pb-16">
+        <div className="hero-img" />
+        <div className="hero-veil" />
+        <motion.div initial={{ opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 2.6, duration: 0.8 }}
           className="text-center max-w-xl relative z-10">
-          <motion.div
-            initial={{ opacity:0, scale:0.9 }}
-            animate={{ opacity:1, scale:1 }}
-            transition={{ delay:3.0 }}
-            className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 mb-8 text-xs tracking-widest"
-            style={{ background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.25)', color: '#C9A84C' }}>
-            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#C9A84C' }}/>
-            PREVENCIÓN · DIGNIDAD · CONFIANZA
-          </motion.div>
-
-          <h1 className="text-5xl md:text-6xl font-serif mb-6 leading-tight text-stone-100">
-            Protegemos<br/>
-            <span className="shimmer-text">lo que más</span><br/>
-            importa
+          <span className="badge"><span className="dot" />PREVISIÓN · DIGNIDAD · CONFIANZA</span>
+          <h1 className="text-5xl md:text-6xl font-serif mt-7 mb-5 leading-[1.08]">
+            Protegemos<br /><span style={{ color: 'var(--brand)' }}>lo que más</span><br />importa
           </h1>
-          <p className="text-stone-400 text-base mb-10 leading-relaxed">
-            Planes funerarios con pagos mensuales cómodos.<br/>
-            Más de 12,400 familias confían en nosotros.
+          <p className="text-base mb-9 leading-relaxed" style={{ color: 'var(--text-soft)' }}>
+            Planes funerarios con pagos mensuales cómodos.<br />Más de 12,400 familias confían en nosotros.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <a href="#planes"
-              className="px-8 py-3 rounded-full text-sm font-medium transition-all hover:opacity-90"
-              style={{ background: 'linear-gradient(135deg, #C9A84C, #E8C97A)', color: '#0A0A0A' }}>
-              Ver planes →
-            </a>
-            <button className="px-8 py-3 rounded-full text-sm font-medium transition-all"
-              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#9A9A9A' }}>
-              Acceder a mi contrato
-            </button>
+            <a href="#planes" className="btn-primary">Ver planes <Ic.arrow s={16} c="#fff" /></a>
+            <button onClick={onDemo} className="btn-outline">Explorar demo</button>
           </div>
         </motion.div>
-
-        {/* Stats */}
-        <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:3.3}}
-          className="absolute bottom-16 flex gap-10 md:gap-16">
-          {stats.map((s,i) => (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 3 }}
+          className="relative z-10 mt-14 flex gap-8 md:gap-16">
+          {stats.map((s, i) => (
             <div key={i} className="text-center">
-              <div className="text-2xl font-serif shimmer-text">{s.value}</div>
-              <div className="text-xs text-stone-500 mt-1">{s.label}</div>
+              <div className="text-2xl md:text-3xl font-serif" style={{ color: 'var(--brand)' }}>{s.value}</div>
+              <div className="text-xs mt-1" style={{ color: 'var(--text-soft)' }}>{s.label}</div>
             </div>
           ))}
         </motion.div>
-
-        <div className="absolute bottom-0 left-0 right-0 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(201,168,76,0.3), transparent)' }}/>
-      </div>
+      </header>
 
       {/* PLANES */}
       <section id="planes" className="px-4 py-20 max-w-5xl mx-auto">
-        <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
-          className="text-center mb-12">
-          <div className="text-xs text-stone-500 tracking-widest mb-3">NUESTROS PLANES</div>
-          <h2 className="text-3xl font-serif text-stone-100 mb-2">Elige tu plan</h2>
-          <p className="text-stone-500 text-sm">Sin letra chica · Cobertura inmediata · Pagos cómodos</p>
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-12">
+          <div className="kicker">NUESTROS PLANES</div>
+          <h2 className="text-3xl font-serif mb-2">Elige tu plan</h2>
+          <p className="text-sm" style={{ color: 'var(--text-soft)' }}>Sin letra chica · Cobertura inmediata · Pagos cómodos</p>
         </motion.div>
-
         <div className="grid md:grid-cols-3 gap-6">
-          {planes.map((p,i) => (
-            <motion.div key={i} initial={{opacity:0,y:30}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
-              transition={{delay:i*0.15}} whileHover={{y:-4,transition:{duration:0.2}}}
-              className="relative rounded-2xl p-6 cursor-pointer"
-              style={p.featured
-                ? { background: 'rgba(201,168,76,0.08)', border: '1px solid rgba(201,168,76,0.35)' }
-                : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-              {p.featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full text-xs font-medium"
-                  style={{ background: '#C9A84C', color: '#0A0A0A' }}>Más popular</div>
-              )}
-              <div className="text-xl font-serif mb-2" style={{ color: p.color }}>{p.name}</div>
-              <div className="text-3xl font-light mb-1 text-stone-100">{p.price}</div>
-              <div className="text-sm mb-6" style={{ color: p.color, opacity: 0.8 }}>{p.monthly}</div>
-              <ul className="space-y-2 mb-6">
-                {p.features.map((f,j) => (
-                  <li key={j} className="flex items-center gap-2 text-sm text-stone-400">
-                    <span style={{ color: p.color }}>✓</span>{f}
+          {planes.map((p, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+              transition={{ delay: i * 0.12 }} whileHover={{ y: -5 }} className={`plan-card ${p.featured ? 'plan-featured' : ''}`}>
+              {p.featured && <div className="plan-badge">Más popular</div>}
+              <div className="text-xl font-serif mb-2" style={{ color: 'var(--brand)' }}>{p.name}</div>
+              <div className="text-3xl font-light mb-1">{p.price}</div>
+              <div className="text-sm mb-6" style={{ color: 'var(--brand-2)' }}>{p.monthly}</div>
+              <ul className="space-y-2.5 mb-7">
+                {p.features.map((f, j) => (
+                  <li key={j} className="flex items-center gap-2.5 text-sm" style={{ color: 'var(--text-soft)' }}>
+                    <Ic.check s={15} c="var(--brand-2)" />{f}
                   </li>
                 ))}
               </ul>
-              <button className="w-full py-2.5 rounded-full text-sm font-medium transition-all hover:opacity-90"
-                style={p.featured
-                  ? { background: '#C9A84C', color: '#0A0A0A' }
-                  : { border: `1px solid ${p.color}55`, color: p.color }}>
-                Contratar ahora
-              </button>
+              <a href="#registro" className={p.featured ? 'btn-primary w-full justify-center' : 'btn-outline w-full justify-center'}>Contratar</a>
             </motion.div>
           ))}
         </div>
       </section>
 
+      {/* REGISTRO */}
+      <section id="registro" className="px-4 py-16">
+        <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8 items-center">
+          <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }}>
+            <div className="kicker">EMPIEZA HOY</div>
+            <h2 className="text-3xl font-serif mb-3">Solicita tu plan</h2>
+            <p className="text-sm mb-6 leading-relaxed" style={{ color: 'var(--text-soft)' }}>
+              Déjanos tus datos y un asesor te contactará sin compromiso. O explora la plataforma ahora mismo, sin registrarte.
+            </p>
+            <button onClick={onDemo} className="btn-outline"><Ic.shield s={16} c="var(--brand)" />Explorar demo sin registro</button>
+          </motion.div>
+          <motion.form onSubmit={submit} initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} className="reg-card">
+            <label className="field"><span>Nombre completo</span>
+              <input required value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} placeholder="María González" /></label>
+            <label className="field"><span>Correo electrónico</span>
+              <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="maria@correo.com" /></label>
+            <label className="field"><span>WhatsApp</span>
+              <input required value={form.whatsapp} onChange={e => setForm({ ...form, whatsapp: e.target.value })} placeholder="998 000 0000" /></label>
+            <button type="submit" className="btn-primary w-full justify-center mt-1">Solicitar contacto <Ic.arrow s={16} c="#fff" /></button>
+            <p className="text-[11px] text-center mt-1" style={{ color: 'var(--text-soft)' }}>Demostración · no se envían datos reales</p>
+          </motion.form>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="px-4 py-16 text-center">
-        <motion.div initial={{opacity:0,y:20}} whileInView={{opacity:1,y:0}} viewport={{once:true}}
-          className="max-w-lg mx-auto glass-gold rounded-3xl p-10">
-          <div className="text-3xl mb-4">🕯️</div>
-          <h3 className="text-2xl font-serif text-stone-100 mb-3">Tu tranquilidad, nuestra misión</h3>
-          <p className="text-stone-400 text-sm mb-6 leading-relaxed">
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="cta-card">
+          <Ic.leaf s={34} c="var(--brand)" />
+          <h3 className="text-2xl font-serif mt-3 mb-3">Tu tranquilidad, nuestra misión</h3>
+          <p className="text-sm mb-6 leading-relaxed max-w-md mx-auto" style={{ color: 'var(--text-soft)' }}>
             Desde 1996 acompañando a familias mexicanas con dignidad y respeto en los momentos más difíciles.
           </p>
-          <div className="text-sm" style={{ color: '#C9A84C' }}>📞 998 717 5692</div>
+          <div className="inline-flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--brand)' }}><Ic.phone s={16} c="var(--brand)" />998 717 5692</div>
         </motion.div>
       </section>
 
-      <footer className="px-6 py-8 text-center text-xs text-stone-600 border-t"
-        style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-        <div className="font-serif shimmer-text text-sm mb-2">PREMMEX</div>
-        <div>© 2024 Previsión Mutual de México · Todos los derechos reservados</div>
+      <footer className="px-6 py-9 text-center text-xs" style={{ color: 'var(--text-soft)', borderTop: '1px solid var(--border)' }}>
+        <div className="flex items-center justify-center gap-2 mb-2"><Mark s={20} /><span className="font-serif tracking-widest" style={{ color: 'var(--text)' }}>PREMMEX</span></div>
+        <div>© 2025 Previsión Mutual de México · Todos los derechos reservados</div>
       </footer>
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 30 }} className="toast">
+            <Ic.check s={16} c="#fff" /> ¡Gracias! Un asesor te contactará pronto.
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
 
-function CobradorView() {
-  const [selected, setSelected] = useState<number|null>(null)
+/* ============ COBRADOR ============ */
+function CobradorView({ theme, toggle }: { theme: 'light' | 'dark'; toggle: () => void }) {
+  const [selected, setSelected] = useState<number | null>(null)
   const [cobrados, setCobrados] = useState<number[]>([2])
-
   const ruta = [
     { nombre: 'María González', dir: 'Av. Tulum 123, Centro', monto: 2800, contrato: 'PMX-2024-001', tel: '9982000001', atrasado: false },
     { nombre: 'José Luis Ramírez', dir: 'Calle Jazmín 45, Jardines', monto: 1500, contrato: 'PMX-2024-002', tel: '9982000002', atrasado: true },
@@ -263,98 +315,72 @@ function CobradorView() {
     { nombre: 'Lucía Martínez', dir: 'Calle Cedro 12, Bonampak', monto: 1500, contrato: 'PMX-2024-005', tel: '9982000005', atrasado: true },
     { nombre: 'Héctor Jiménez', dir: 'Av. Nichupté 123, R-100', monto: 1500, contrato: 'PMX-2024-010', tel: '9982000010', atrasado: false },
   ]
-
-  const totalCobrado = cobrados.reduce((a,i) => a + ruta[i].monto, 0)
-  const totalPendiente = ruta.filter((_,i) => !cobrados.includes(i)).reduce((a,r) => a+r.monto,0)
-
-  const toggleCobro = (i: number) => {
-    setCobrados(prev => prev.includes(i) ? prev.filter(x=>x!==i) : [...prev,i])
-  }
+  const totalCobrado = cobrados.reduce((a, i) => a + ruta[i].monto, 0)
+  const totalPendiente = ruta.filter((_, i) => !cobrados.includes(i)).reduce((a, r) => a + r.monto, 0)
+  const toggleCobro = (i: number) => setCobrados(prev => (prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]))
 
   return (
-    <div className="min-h-screen pb-28" style={{ background: '#0A0A0A' }}>
-      {/* Header cobrador */}
-      <div className="px-4 pt-12 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <motion.div initial={{opacity:0}} animate={{opacity:1}}>
-          <div className="text-xs text-stone-500 tracking-widest mb-1">COBRADOR · MODO CAMPO</div>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-serif text-stone-100">Roberto Méndez</h1>
-              <div className="text-xs text-stone-500">Zona Norte · Martes 10 Jun 2025</div>
-            </div>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
-              style={{ background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.3)' }}>
-              👤
-            </div>
+    <div className="min-h-screen pb-28" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+      <div className="app-banner" style={{ backgroundImage: 'var(--img-cobrador)' }}>
+        <div className="app-banner-veil" />
+        <div className="relative z-10 px-5 pt-10 pb-5 flex items-end justify-between">
+          <div>
+            <div className="kicker !mb-1" style={{ color: '#fff', opacity: 0.85 }}>COBRADOR · MODO CAMPO</div>
+            <h1 className="text-2xl font-serif" style={{ color: '#fff' }}>Roberto Méndez</h1>
+            <div className="text-xs" style={{ color: 'rgba(255,255,255,0.8)' }}>Zona Norte · Martes 10 Jun 2025</div>
           </div>
-        </motion.div>
+          <ThemeBtn theme={theme} toggle={toggle} />
+        </div>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-4">
+      <div className="px-4 -mt-7 relative z-10">
+        <div className="grid grid-cols-2 gap-3">
           {[
-            { label: 'Cobrado', value: `$${totalCobrado.toLocaleString()}`, color: '#4CAF50' },
-            { label: 'Pendiente', value: `$${totalPendiente.toLocaleString()}`, color: '#FF9800' },
-          ].map((s,i) => (
-            <motion.div key={i} initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}} transition={{delay:0.1+i*0.1}}
-              className="rounded-xl p-3"
-              style={{ background: `${s.color}15`, border: `1px solid ${s.color}33` }}>
-              <div className="text-xs text-stone-500 mb-1">{s.label}</div>
+            { label: 'Cobrado', value: `$${totalCobrado.toLocaleString()}`, color: '#16A34A' },
+            { label: 'Pendiente', value: `$${totalPendiente.toLocaleString()}`, color: '#EA580C' },
+          ].map((s, i) => (
+            <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 + i * 0.1 }}
+              className="card p-4">
+              <div className="text-xs mb-1" style={{ color: 'var(--text-soft)' }}>{s.label}</div>
               <div className="text-xl font-serif" style={{ color: s.color }}>{s.value}</div>
             </motion.div>
           ))}
         </div>
       </div>
 
-      {/* Ruta del día */}
-      <div className="px-4 pt-4">
-        <div className="text-xs text-stone-500 tracking-widest mb-3">RUTA DEL DÍA · {ruta.length} VISITAS</div>
+      <div className="px-4 pt-6">
+        <div className="kicker">RUTA DEL DÍA · {ruta.length} VISITAS</div>
         <div className="space-y-3">
-          {ruta.map((c,i) => {
+          {ruta.map((c, i) => {
             const esCobrado = cobrados.includes(i)
             return (
-              <motion.div key={i} initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{delay:i*0.07}}
-                className="rounded-2xl overflow-hidden"
-                style={{ border: esCobrado ? '1px solid rgba(76,175,80,0.4)' : c.atrasado ? '1px solid rgba(255,152,0,0.35)' : '1px solid rgba(255,255,255,0.07)',
-                  background: esCobrado ? 'rgba(76,175,80,0.05)' : 'rgba(255,255,255,0.02)' }}>
-                <div className="px-4 py-3 flex items-center justify-between cursor-pointer"
-                  onClick={() => setSelected(selected===i?null:i)}>
+              <motion.div key={i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
+                className="card overflow-hidden" style={{ borderColor: esCobrado ? 'rgba(22,163,74,0.45)' : c.atrasado ? 'rgba(234,88,12,0.4)' : 'var(--border)' }}>
+                <div className="px-4 py-3 flex items-center justify-between cursor-pointer" onClick={() => setSelected(selected === i ? null : i)}>
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm"
-                      style={{ background: esCobrado ? 'rgba(76,175,80,0.2)' : 'rgba(255,255,255,0.05)' }}>
-                      {esCobrado ? '✓' : (i+1)}
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium"
+                      style={{ background: esCobrado ? 'rgba(22,163,74,0.18)' : 'var(--brand-soft)', color: esCobrado ? '#16A34A' : 'var(--brand)' }}>
+                      {esCobrado ? <Ic.check s={16} c="#16A34A" /> : i + 1}
                     </div>
-                    <div>
-                      <div className="text-sm font-medium text-stone-100">{c.nombre}</div>
-                      <div className="text-xs text-stone-500">{c.dir}</div>
-                    </div>
+                    <div><div className="text-sm font-medium">{c.nombre}</div><div className="text-xs" style={{ color: 'var(--text-soft)' }}>{c.dir}</div></div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-medium" style={{ color: '#C9A84C' }}>${c.monto.toLocaleString()}</div>
-                    {c.atrasado && <div className="text-xs text-orange-400">⚠ Atrasado</div>}
-                    {esCobrado && <div className="text-xs text-green-400">Cobrado</div>}
+                    <div className="text-sm font-semibold" style={{ color: 'var(--brand)' }}>${c.monto.toLocaleString()}</div>
+                    {c.atrasado && !esCobrado && <div className="text-xs" style={{ color: '#EA580C' }}>Atrasado</div>}
+                    {esCobrado && <div className="text-xs" style={{ color: '#16A34A' }}>Cobrado</div>}
                   </div>
                 </div>
                 <AnimatePresence>
                   {selected === i && (
-                    <motion.div initial={{height:0,opacity:0}} animate={{height:'auto',opacity:1}} exit={{height:0,opacity:0}}
-                      className="overflow-hidden">
-                      <div className="px-4 pb-4 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                        <div className="text-xs text-stone-500 mb-3">Folio: <span className="text-stone-300">{c.contrato}</span></div>
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                      <div className="px-4 pb-4 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+                        <div className="text-xs mb-3" style={{ color: 'var(--text-soft)' }}>Folio: <span style={{ color: 'var(--text)' }}>{c.contrato}</span></div>
                         <div className="grid grid-cols-3 gap-2">
-                          <a href={`tel:${c.tel}`}
-                            className="flex flex-col items-center py-2.5 rounded-xl text-xs gap-1"
-                            style={{ background: 'rgba(33,150,243,0.12)', color: '#2196F3' }}>
-                            <span className="text-lg">📞</span>Llamar
-                          </a>
-                          <a href={`https://wa.me/52${c.tel}`}
-                            className="flex flex-col items-center py-2.5 rounded-xl text-xs gap-1"
-                            style={{ background: 'rgba(37,211,102,0.12)', color: '#25D166' }}>
-                            <span className="text-lg">💬</span>WA
-                          </a>
-                          <button onClick={() => toggleCobro(i)}
-                            className="flex flex-col items-center py-2.5 rounded-xl text-xs gap-1"
-                            style={{ background: esCobrado ? 'rgba(255,87,34,0.12)' : 'rgba(201,168,76,0.18)', color: esCobrado ? '#FF5722' : '#C9A84C' }}>
-                            <span className="text-lg">{esCobrado ? '↩' : '💰'}</span>
-                            {esCobrado ? 'Deshacer' : 'Cobrar'}
+                          <a href={`tel:${c.tel}`} className="qa" style={{ background: 'rgba(14,165,233,0.12)', color: '#0EA5E9' }}><Ic.phone s={18} c="#0EA5E9" />Llamar</a>
+                          <a href={`https://wa.me/52${c.tel}`} className="qa" style={{ background: 'rgba(22,163,74,0.12)', color: '#16A34A' }}><Ic.chat s={18} c="#16A34A" />WhatsApp</a>
+                          <button onClick={() => toggleCobro(i)} className="qa"
+                            style={{ background: esCobrado ? 'rgba(234,88,12,0.12)' : 'var(--brand-soft)', color: esCobrado ? '#EA580C' : 'var(--brand)' }}>
+                            {esCobrado ? <Ic.undo s={18} c="#EA580C" /> : <Ic.money s={18} c="var(--brand)" />}{esCobrado ? 'Deshacer' : 'Cobrar'}
                           </button>
                         </div>
                       </div>
@@ -370,116 +396,83 @@ function CobradorView() {
   )
 }
 
-function AdminView() {
-  const [tab, setTab] = useState<'dashboard'|'contratos'|'cobradores'>('dashboard')
-
+/* ============ ADMIN ============ */
+function AdminView({ theme, toggle }: { theme: 'light' | 'dark'; toggle: () => void }) {
+  const [tab, setTab] = useState<'dashboard' | 'contratos' | 'cobradores'>('dashboard')
   const stats = [
-    { label: 'Contratos activos', value: '164', icon: '📋', color: '#C9A84C' },
-    { label: 'Cobrado este mes', value: '$67,600', icon: '💰', color: '#4CAF50' },
-    { label: 'Por cobrar', value: '$18,900', icon: '⏳', color: '#FF9800' },
-    { label: 'Cobradores', value: '4', icon: '👥', color: '#9C27B0' },
+    { label: 'Contratos activos', value: '164', I: Ic.doc, color: 'var(--brand)' },
+    { label: 'Cobrado este mes', value: '$67,600', I: Ic.money, color: '#16A34A' },
+    { label: 'Por cobrar', value: '$18,900', I: Ic.bell, color: '#EA580C' },
+    { label: 'Cobradores', value: '4', I: Ic.team, color: '#7C3AED' },
   ]
-
   const cobradores = [
     { nombre: 'Javier Hernández', zona: 'Centro', contratos: 52, cobrado: 22100, meta: 24000 },
     { nombre: 'Roberto Méndez', zona: 'Norte', contratos: 45, cobrado: 18500, meta: 20000 },
     { nombre: 'Carmen Torres', zona: 'Sur', contratos: 38, cobrado: 15200, meta: 18000 },
     { nombre: 'Daniela Ruiz', zona: 'Oriente', contratos: 29, cobrado: 11800, meta: 14000 },
   ]
-
   const contratos = [
-    { folio: 'PMX-2024-001', cliente: 'María González', paquete: 'Paz Familiar', mensual: 2800, saldo: 16800, estado: 'al_corriente' },
-    { folio: 'PMX-2024-002', cliente: 'José Luis Ramírez', paquete: 'Serenidad Básico', mensual: 1500, saldo: 12000, estado: 'atrasado' },
-    { folio: 'PMX-2024-003', cliente: 'Ana Patricia Flores', paquete: 'Eternidad Plus', mensual: 4500, saldo: 36000, estado: 'al_corriente' },
-    { folio: 'PMX-2024-004', cliente: 'Carlos Morales', paquete: 'Paz Familiar', mensual: 2800, saldo: 5600, estado: 'al_corriente' },
+    { folio: 'PMX-2024-001', cliente: 'María González', paquete: 'Paz Familiar', mensual: 2800, saldo: 16800, estado: 'al corriente' },
+    { folio: 'PMX-2024-002', cliente: 'José Luis Ramírez', paquete: 'Serenidad', mensual: 1500, saldo: 12000, estado: 'atrasado' },
+    { folio: 'PMX-2024-003', cliente: 'Ana Patricia Flores', paquete: 'Eternidad Plus', mensual: 4500, saldo: 36000, estado: 'al corriente' },
+    { folio: 'PMX-2024-004', cliente: 'Carlos Morales', paquete: 'Paz Familiar', mensual: 2800, saldo: 5600, estado: 'al corriente' },
     { folio: 'PMX-2024-007', cliente: 'Esperanza Díaz', paquete: 'Eternidad Plus', mensual: 4500, saldo: 0, estado: 'liquidado' },
   ]
-
   const pagos = [
     { cliente: 'Roberto Silva', monto: 2800, metodo: 'Efectivo', hora: '12 min', folio: 'REC-006' },
     { cliente: 'Héctor Jiménez', monto: 1500, metodo: 'Mercado Pago', hora: '28 min', folio: 'REC-009' },
     { cliente: 'Ana Flores', monto: 4500, metodo: 'Efectivo', hora: '1h', folio: 'REC-003' },
     { cliente: 'María González', monto: 2800, metodo: 'Efectivo', hora: '5 días', folio: 'REC-001' },
   ]
+  const estBadge = (e: string) => e === 'liquidado' ? { bg: 'rgba(22,163,74,0.15)', c: '#16A34A' } : e === 'atrasado' ? { bg: 'rgba(234,88,12,0.15)', c: '#EA580C' } : { bg: 'var(--surface-2)', c: 'var(--text-soft)' }
 
   return (
-    <div className="min-h-screen pb-28" style={{ background: '#0A0A0A' }}>
-      {/* Header */}
-      <div className="px-4 pt-12 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="text-xs text-stone-500 tracking-widest mb-1">PANEL ADMINISTRATIVO</div>
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-serif shimmer-text">PREMMEX</h1>
-          <div className="text-xs glass-gold px-3 py-1 rounded-full" style={{ color: '#C9A84C' }}>
-            Sede Cancún
-          </div>
+    <div className="min-h-screen pb-28" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+      <div className="app-banner" style={{ backgroundImage: 'var(--img-admin)' }}>
+        <div className="app-banner-veil" />
+        <div className="relative z-10 px-5 pt-10 pb-6 flex items-center justify-between">
+          <div className="flex items-center gap-2.5"><Mark s={26} /><div>
+            <div className="kicker !mb-0.5" style={{ color: '#fff', opacity: 0.85 }}>PANEL ADMINISTRATIVO</div>
+            <h1 className="text-xl font-serif" style={{ color: '#fff' }}>PREMMEX · Sede Cancún</h1></div></div>
+          <ThemeBtn theme={theme} toggle={toggle} />
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex px-4 pt-4 gap-2 mb-4">
-        {[
-          { key: 'dashboard', label: '📊 Dashboard' },
-          { key: 'contratos', label: '📋 Contratos' },
-          { key: 'cobradores', label: '👥 Equipo' },
-        ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key as typeof tab)}
-            className="px-4 py-2 rounded-full text-xs font-medium transition-all"
-            style={tab === t.key
-              ? { background: '#C9A84C', color: '#0A0A0A' }
-              : { background: 'rgba(255,255,255,0.05)', color: '#9A9A9A' }}>
-            {t.label}
+      <div className="flex px-4 pt-5 gap-2 mb-4 overflow-x-auto">
+        {[{ key: 'dashboard', label: 'Dashboard', I: Ic.chart }, { key: 'contratos', label: 'Contratos', I: Ic.doc }, { key: 'cobradores', label: 'Equipo', I: Ic.team }].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key as typeof tab)} className="tab"
+            style={tab === t.key ? { background: 'var(--brand)', color: '#fff' } : { background: 'var(--surface-2)', color: 'var(--text-soft)' }}>
+            <t.I s={15} c={tab === t.key ? '#fff' : 'var(--text-soft)'} />{t.label}
           </button>
         ))}
       </div>
 
       {tab === 'dashboard' && (
         <div className="px-4">
-          {/* Stats */}
           <div className="grid grid-cols-2 gap-3 mb-6">
-            {stats.map((s,i) => (
-              <motion.div key={i} initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}} transition={{delay:i*0.08}}
-                className="glass rounded-2xl p-4"
-                style={{ borderColor: `${s.color}22` }}>
-                <div className="text-2xl mb-2">{s.icon}</div>
-                <div className="text-xs text-stone-500 mb-1">{s.label}</div>
+            {stats.map((s, i) => (
+              <motion.div key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.07 }} className="card p-4">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: 'var(--brand-soft)' }}><s.I s={18} c={s.color} /></div>
+                <div className="text-xs mb-1" style={{ color: 'var(--text-soft)' }}>{s.label}</div>
                 <div className="text-xl font-serif" style={{ color: s.color }}>{s.value}</div>
               </motion.div>
             ))}
           </div>
-
-          {/* Pagos recientes */}
-          <div className="text-xs text-stone-500 tracking-widest mb-3">COBROS RECIENTES</div>
+          <div className="kicker">COBROS RECIENTES</div>
           <div className="space-y-2 mb-6">
-            {pagos.map((p,i) => (
-              <motion.div key={i} initial={{opacity:0,x:20}} animate={{opacity:1,x:0}} transition={{delay:0.3+i*0.07}}
-                className="glass rounded-xl px-4 py-3 flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-stone-200">{p.cliente}</div>
-                  <div className="text-xs text-stone-500">{p.metodo} · hace {p.hora}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm font-medium" style={{ color: '#4CAF50' }}>+${p.monto.toLocaleString()}</div>
-                  <div className="text-xs text-stone-600">{p.folio}</div>
-                </div>
+            {pagos.map((p, i) => (
+              <motion.div key={i} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 + i * 0.06 }} className="card px-4 py-3 flex items-center justify-between">
+                <div><div className="text-sm">{p.cliente}</div><div className="text-xs" style={{ color: 'var(--text-soft)' }}>{p.metodo} · hace {p.hora}</div></div>
+                <div className="text-right"><div className="text-sm font-semibold" style={{ color: '#16A34A' }}>+${p.monto.toLocaleString()}</div><div className="text-xs" style={{ color: 'var(--text-soft)' }}>{p.folio}</div></div>
               </motion.div>
             ))}
           </div>
-
-          {/* Acciones */}
-          <div className="text-xs text-stone-500 tracking-widest mb-3">ACCIONES RÁPIDAS</div>
+          <div className="kicker">ACCIONES RÁPIDAS</div>
           <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: 'Nuevo contrato', icon: '📋', color: '#C9A84C' },
-              { label: 'Reporte mensual', icon: '📊', color: '#9C27B0' },
-              { label: 'Mapa de rutas', icon: '🗺️', color: '#2196F3' },
-              { label: 'Enviar recibos', icon: '📱', color: '#4CAF50' },
-            ].map((a,i) => (
-              <motion.button key={i} initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}} transition={{delay:0.7+i*0.06}}
-                className="glass rounded-2xl p-4 text-left hover:opacity-80 transition-opacity"
-                style={{ borderColor: `${a.color}33` }}
-                whileHover={{ scale: 1.02 }}>
-                <div className="text-2xl mb-2">{a.icon}</div>
-                <div className="text-sm text-stone-300">{a.label}</div>
+            {[{ label: 'Nuevo contrato', I: Ic.doc, color: 'var(--brand)' }, { label: 'Reporte mensual', I: Ic.chart, color: '#7C3AED' }, { label: 'Mapa de rutas', I: Ic.map, color: '#0EA5E9' }, { label: 'Enviar recibos', I: Ic.chat, color: '#16A34A' }].map((a, i) => (
+              <motion.button key={i} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.55 + i * 0.05 }} whileHover={{ scale: 1.02 }} className="card p-4 text-left">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style={{ background: 'var(--brand-soft)' }}><a.I s={18} c={a.color} /></div>
+                <div className="text-sm">{a.label}</div>
               </motion.button>
             ))}
           </div>
@@ -488,56 +481,42 @@ function AdminView() {
 
       {tab === 'contratos' && (
         <div className="px-4">
-          <div className="text-xs text-stone-500 tracking-widest mb-3">CONTRATOS ACTIVOS</div>
+          <div className="kicker">CONTRATOS ACTIVOS</div>
           <div className="space-y-3">
-            {contratos.map((c,i) => (
-              <motion.div key={i} initial={{opacity:0,y:10}} animate={{opacity:1,y:0}} transition={{delay:i*0.07}}
-                className="glass rounded-2xl p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <div className="font-medium text-stone-100 text-sm">{c.cliente}</div>
-                    <div className="text-xs text-stone-500">{c.folio} · {c.paquete}</div>
+            {contratos.map((c, i) => {
+              const b = estBadge(c.estado)
+              return (
+                <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }} className="card p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <div><div className="font-medium text-sm">{c.cliente}</div><div className="text-xs" style={{ color: 'var(--text-soft)' }}>{c.folio} · {c.paquete}</div></div>
+                    <div className="text-xs px-2.5 py-1 rounded-full font-medium" style={{ background: b.bg, color: b.c }}>{c.estado}</div>
                   </div>
-                  <div className={`text-xs px-2 py-1 rounded-full ${
-                    c.estado==='liquidado' ? 'bg-green-500/20 text-green-400' :
-                    c.estado==='atrasado' ? 'bg-orange-500/20 text-orange-400' :
-                    'bg-stone-700/50 text-stone-400'}`}>
-                    {c.estado.replace('_',' ')}
+                  <div className="flex justify-between text-sm" style={{ color: 'var(--text-soft)' }}>
+                    <span>Mensual: <span style={{ color: 'var(--brand)' }}>${c.mensual.toLocaleString()}</span></span>
+                    <span>Saldo: <span style={{ color: 'var(--text)' }}>${c.saldo.toLocaleString()}</span></span>
                   </div>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-stone-500">Mensual: <span style={{ color: '#C9A84C' }}>${c.mensual.toLocaleString()}</span></span>
-                  <span className="text-stone-500">Saldo: <span className="text-stone-300">${c.saldo.toLocaleString()}</span></span>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              )
+            })}
           </div>
         </div>
       )}
 
       {tab === 'cobradores' && (
         <div className="px-4">
-          <div className="text-xs text-stone-500 tracking-widest mb-3">RENDIMIENTO DEL EQUIPO</div>
+          <div className="kicker">RENDIMIENTO DEL EQUIPO</div>
           <div className="space-y-4">
-            {cobradores.map((c,i) => {
-              const pct = Math.round(c.cobrado/c.meta*100)
+            {cobradores.map((c, i) => {
+              const pct = Math.round((c.cobrado / c.meta) * 100)
               return (
-                <motion.div key={i} initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} transition={{delay:i*0.09}}
-                  className="glass rounded-2xl p-4">
+                <motion.div key={i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }} className="card p-4">
                   <div className="flex justify-between mb-3">
-                    <div>
-                      <div className="font-medium text-stone-100">{c.nombre}</div>
-                      <div className="text-xs text-stone-500">Zona {c.zona} · {c.contratos} contratos</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium" style={{ color: '#C9A84C' }}>${c.cobrado.toLocaleString()}</div>
-                      <div className="text-xs text-stone-500">{pct}% de meta</div>
-                    </div>
+                    <div><div className="font-medium">{c.nombre}</div><div className="text-xs" style={{ color: 'var(--text-soft)' }}>Zona {c.zona} · {c.contratos} contratos</div></div>
+                    <div className="text-right"><div className="font-semibold" style={{ color: 'var(--brand)' }}>${c.cobrado.toLocaleString()}</div><div className="text-xs" style={{ color: 'var(--text-soft)' }}>{pct}% de meta</div></div>
                   </div>
-                  <div className="h-1.5 rounded-full bg-stone-800 overflow-hidden">
-                    <motion.div initial={{width:0}} animate={{width:`${pct}%`}} transition={{delay:0.4+i*0.1,duration:0.8}}
-                      className="h-full rounded-full"
-                      style={{ background: pct>=90 ? '#4CAF50' : pct>=70 ? '#C9A84C' : '#FF5722' }}/>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ delay: 0.3 + i * 0.1, duration: 0.8 }}
+                      className="h-full rounded-full" style={{ background: pct >= 90 ? '#16A34A' : pct >= 70 ? 'var(--brand)' : '#EA580C' }} />
                   </div>
                 </motion.div>
               )
