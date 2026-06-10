@@ -84,15 +84,11 @@ const Ic = {
   ),
 }
 
-/* ============ BRAND MARK ============ */
+/* ============ BRAND MARK (emblema Higgsfield premium) ============ */
 function Mark({ s = 28 }: { s?: number }) {
   return (
-    <svg width={s} height={s} viewBox="0 0 48 48" fill="none">
-      <path d="M24 6 L24 42" stroke="var(--brand)" strokeWidth="2" strokeLinecap="round" />
-      <path d="M13 16 Q24 7 35 16" stroke="var(--brand)" strokeWidth="2" strokeLinecap="round" fill="none" />
-      <path d="M13 31 Q24 41 35 31" stroke="var(--brand-2)" strokeWidth="2" strokeLinecap="round" fill="none" />
-      <circle cx="24" cy="24" r="3.4" fill="var(--brand)" />
-    </svg>
+    <img src="/images/logo.png" alt="PREMMEX" width={s} height={s}
+      style={{ width: s, height: s, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 0 0 1px var(--border)', background: '#fff' }} />
   )
 }
 
