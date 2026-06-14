@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Ic, Mark, Toast, useTheme, ThemeBtn } from './shared'
 
-function PassLogin({ onLogin }: { onLogin: (pass: string)=>Promise<void> }) {
+function PassLogin({ onLogin, onBack }: { onLogin: (pass: string)=>Promise<void>; onBack?: ()=>void }) {
   const [pass, setPass] = useState('')
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
@@ -33,16 +33,18 @@ function PassLogin({ onLogin }: { onLogin: (pass: string)=>Promise<void> }) {
             style={{opacity:(loading||!pass)?0.5:1,background:'#7C3AED'}}>
             {loading?'Verificando...':'Entrar'} {!loading&&<Ic.arrow s={16} c="#fff"/>}
           </button>
-          <a href="/" className="flex items-center justify-center gap-1.5 mt-3 text-xs" style={{color:'var(--text-soft)'}}>
-            <Ic.home s={14} c="var(--text-soft)"/>Volver al inicio
-          </a>
+          {onBack && (
+            <button onClick={onBack} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,marginTop:12,padding:'10px',background:'none',border:'none',cursor:'pointer',color:'var(--text-soft)',fontSize:13}}>
+              <Ic.home s={14} c="var(--text-soft)"/>Volver al inicio
+            </button>
+          )}
         </div>
       </motion.div>
     </div>
   )
 }
 
-export default function AdminApp() {
+export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
   const [session, setSession] = useState(false)
   const { theme, toggle } = useTheme()
   const [tab, setTab] = useState('dashboard')
@@ -124,7 +126,7 @@ export default function AdminApp() {
     setSaving(false)
   }
 
-  if (!session) return <PassLogin onLogin={handleLogin}/>
+  if (!session) return <PassLogin onLogin={handleLogin} onBack={onBack}/>
 
   const TABS = [
     {k:'dashboard',l:'Dashboard',I:Ic.chart},

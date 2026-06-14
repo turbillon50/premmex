@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Ic, Mark, Toast, useTheme, ThemeBtn, PinLogin } from './shared'
 
-export default function CobradorApp() {
+export default function CobradorApp({ onBack }: { onBack?: ()=>void }) {
   const [session, setSession] = useState<any>(null)
   const { theme, toggle } = useTheme()
   const [ruta, setRuta] = useState<any[]>([])
@@ -108,7 +108,12 @@ export default function CobradorApp() {
   }
 
   if (!session) return <PinLogin title="PREMMEX" subtitle="Acceso cobrador de campo" color="#0EA5E9" onLogin={handleLogin}
-    extra={<p className="text-xs text-center mb-4" style={{color:'var(--text-soft)'}}>Demo: 1111 · 2222 · 3333 · 4444</p>}/>
+    extra={
+      <>
+        <p className="text-xs text-center mb-4" style={{color:'var(--text-soft)'}}>Demo: 1111 · 2222 · 3333 · 4444</p>
+        {onBack && <button onClick={onBack} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,width:'100%',marginBottom:8,padding:'10px',background:'none',border:'none',cursor:'pointer',color:'var(--text-soft)',fontSize:13}}><Ic.home s={14} c="var(--text-soft)"/>Volver al inicio</button>}
+      </>
+    }/>
 
   const totalCobrado = ruta.filter(r=>cobrados.has(r.contrato_id)).reduce((a,r)=>a+parseFloat(r.monto_mensual),0)
   const totalPendiente = ruta.filter(r=>!cobrados.has(r.contrato_id)).reduce((a,r)=>a+parseFloat(r.monto_mensual),0)

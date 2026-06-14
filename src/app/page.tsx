@@ -84,9 +84,9 @@ export default function PremmexSPA() {
     </button>
   )
 
-  if (screen === 'socio')    return (<><RoleBack /><SocioApp /></>)
-  if (screen === 'cobrador') return (<><RoleBack /><CobradorApp /></>)
-  if (screen === 'admin')    return (<><RoleBack /><AdminApp /></>)
+  if (screen === 'socio')    return (<SocioApp onBack={() => go('home')} />)
+  if (screen === 'cobrador') return (<CobradorApp onBack={() => go('home')} />)
+  if (screen === 'admin')    return (<AdminApp onBack={() => go('home')} />)
 
   // ---------- SPA PÚBLICA ----------
   return (<>
@@ -236,8 +236,7 @@ export default function PremmexSPA() {
               <div>© 2026 Previsión Mutual de México · Todos los derechos reservados</div>
               <div style={{ marginTop: 12, display: 'flex', gap: 18, justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button onClick={() => go('socio')} style={{ background: 'none', border: 'none', color: 'var(--text-soft)', cursor: 'pointer', fontSize: 12 }}>Portal de socios</button>
-                <button onClick={() => go('cobrador')} style={{ background: 'none', border: 'none', color: 'var(--text-soft)', cursor: 'pointer', fontSize: 12 }}>Acceso cobrador</button>
-                <button onClick={() => go('admin')} style={{ background: 'none', border: 'none', color: 'var(--text-soft)', cursor: 'pointer', fontSize: 12 }}>Administración</button>
+
               </div>
             </footer>
           </motion.div>
