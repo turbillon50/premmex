@@ -149,7 +149,7 @@ function LoginView({ onLogin }: { onLogin: (role: string, data: any) => void }) 
 /* ══════════ ROOT ══════════ */
 export default function Home() {
   const [splash, setSplash] = useState(true)
-  const [mode, setMode] = useState<'publico'|'cobrador'|'admin'>('publico')
+  const [mode, setMode] = useState<string>('publico')
   const [session, setSession] = useState<any>(null)
   const { theme, toggle } = useTheme()
 
@@ -338,7 +338,7 @@ function CobradorView({ theme, toggle, session, onLogout }: { theme: 'light'|'da
   const [ruta, setRuta] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<number|null>(null)
-  const [cobrados, setCobrados] = useState<Set<number>>(new Set())
+  const [cobrados, setCobrados] = useState<Set<number>>(new Set<number>())
   const [toast, setToast] = useState<{msg:string;ok:boolean}|null>(null)
   const [recibo, setRecibo] = useState<string|null>(null)
   const [pagando, setPagando] = useState(false)
@@ -370,7 +370,7 @@ function CobradorView({ theme, toggle, session, onLogout }: { theme: 'light'|'da
       })
       const d = await r.json()
       if (!r.ok) { showToast(d.error || 'Error al cobrar', false); setPagando(false); return }
-      setCobrados(prev => new Set([...prev, item.contrato_id]))
+      setCobrados(prev => new Set(Array.from(prev).concat(item.contrato_id)))
       setRecibo(d.recibo_num)
       showToast(`Cobro registrado · ${d.recibo_num}`)
       setSelected(null)
@@ -690,3 +690,4 @@ function AdminView({ theme, toggle, session, onLogout }: { theme: 'light'|'dark'
     </div>
   )
 }
+
