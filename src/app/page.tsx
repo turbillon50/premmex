@@ -566,8 +566,8 @@ function CobradorView({ theme, toggle, session, onLogout }: { theme: 'light'|'da
         link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
         document.head.appendChild(link)
       }
-      import('leaflet' as any).then((L: any) => {
-        const leaflet = L.default || L
+      import('leaflet').then((L) => {
+        const leaflet: any = L.default || L
         delete (leaflet.Icon.Default.prototype as any)._getIconUrl
         leaflet.Icon.Default.mergeOptions({
           iconRetinaUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -1203,3 +1203,4 @@ function AdminView({ theme, toggle, session, onLogout }: { theme: 'light'|'dark'
     </div>
   )
 }
+
