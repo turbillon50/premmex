@@ -174,3 +174,25 @@ body {
   padding: 12px 22px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #fff;
   background: linear-gradient(135deg, var(--brand), var(--brand-2)); box-shadow: var(--shadow);
 }
+
+/* ── MOBILE NATIVE FEEL ── */
+html, body {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  height: 100%;
+}
+#__next, main {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+/* Safe area para notch/home indicator */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-top    { padding-top:    env(safe-area-inset-top, 0px); }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .4; }
+}

@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Ic, Mark, useTheme } from '@/components/shared'
 
 // Apps de rol — login propio (no Clerk). Se cargan solo cuando el usuario QUIERE USAR.
-const SocioApp    = dynamic(() => import('@/components/SocioApp'),    { ssr: false })
-const CobradorApp = dynamic(() => import('@/components/CobradorApp'), { ssr: false })
-const AdminApp    = dynamic(() => import('@/components/AdminApp'),    { ssr: false })
+const SocioApp    = dynamic(() => import('@/components/SocioApp'),    { ssr: false, loading: () => <div style={{minHeight:'100svh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}><div style={{width:40,height:40,borderRadius:'50%',border:'3px solid var(--brand)',borderTopColor:'transparent',animation:'spin 0.8s linear infinite'}}/></div> })
+const CobradorApp = dynamic(() => import('@/components/CobradorApp'), { ssr: false, loading: () => <div style={{minHeight:'100svh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}><div style={{width:40,height:40,borderRadius:'50%',border:'3px solid #0EA5E9',borderTopColor:'transparent',animation:'spin 0.8s linear infinite'}}/></div> })
+const AdminApp    = dynamic(() => import('@/components/AdminApp'),    { ssr: false, loading: () => <div style={{minHeight:'100svh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}><div style={{width:40,height:40,borderRadius:'50%',border:'3px solid #7C3AED',borderTopColor:'transparent',animation:'spin 0.8s linear infinite'}}/></div> })
 
 type Screen = 'home' | 'planes' | 'plan-detail' | 'contacto' | 'socio' | 'cobrador' | 'admin'
 
@@ -116,7 +116,7 @@ export default function PremmexSPA() {
           <Mark s={26} />
           <span className="font-serif" style={{ fontSize: 18, letterSpacing: '0.18em', color: 'var(--text)' }}>PREMMEX</span>
         </button>
-        <button onClick={() => go('contacto')} className="btn-ghost" style={{ fontSize: 13 }}>Solicitar info</button>
+        <button onClick={() => go('socio')} style={{padding:'8px 16px',borderRadius:999,border:'1.5px solid var(--border)',background:'color-mix(in srgb,var(--surface) 80%,transparent)',backdropFilter:'blur(12px)',color:'var(--brand)',fontSize:13,fontWeight:600,cursor:'pointer'}}>Mi contrato</button>
       </nav>
 
       <AnimatePresence mode="wait">
@@ -137,6 +137,9 @@ export default function PremmexSPA() {
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <button onClick={() => go('planes')} className="btn-primary justify-center">Ver planes {Ic.arrow({ s: 16, c: '#fff' })}</button>
                   <button onClick={() => go('contacto')} className="btn-outline justify-center">Contactar</button>
+              <button onClick={() => go('socio')} style={{display:'inline-flex',alignItems:'center',gap:6,padding:'14px 22px',borderRadius:999,background:'rgba(255,255,255,0.12)',backdropFilter:'blur(8px)',color:'#fff',fontSize:14,fontWeight:600,border:'1px solid rgba(255,255,255,0.3)',cursor:'pointer'}}>
+                Ya soy socio →
+              </button>
                 </div>
               </motion.div>
               <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: splash ? 2.3 : 0.4 }} className="relative z-10" style={{ marginTop: 52, display: 'flex', gap: 'clamp(28px,8vw,64px)' }}>
