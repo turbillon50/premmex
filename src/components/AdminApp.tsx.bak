@@ -55,277 +55,77 @@ function PassLogin({ onLogin, onBack }: { onLogin:(p:string)=>Promise<void>; onB
   )
 }
 
-
 /* ─── NUEVO CONTRATO MODAL ─── */
 function NuevoContratoModal({ meta, onSave, onClose, showT }:
   { meta:any; onSave:(f:any)=>Promise<void>; onClose:()=>void; showT:(m:string,ok?:boolean)=>void }) {
-
-  // Calcular siguiente ncontrato sugerido a partir del último
-  const suggestNext = (last: string | null): string => {
-    if (!last) return 'PMX-' + new Date().getFullYear() + '-001'
-    const m = last.match(/(\d+)$/)
-    if (!m) return 'PMX-' + new Date().getFullYear() + '-001'
-    const next = parseInt(m[1]) + 1
-    return 'PMX-' + new Date().getFullYear() + '-' + String(next).padStart(3, '0')
-  }
-  const suggestNextNum = (last: string | null): string => {
-    if (!last) return ''
-    const n = parseInt(last)
-    return isNaN(n) ? '' : String(n + 1)
-  }
-
-  const [form, setForm] = useState({
-    nombre: '', telefono: '', domicilio: '', colonia: '',
-    municipio: 'Capilla de Guadalupe', estado_civil: '', ocupacion: '',
-    cobrador_id: meta.cobradores?.[0]?.id || '',
-    plan_id: meta.planes?.[0]?.id || '',
-    beneficiario: '', dia_pago: '5',
-    ncontrato: suggestNext(meta.lastContrato),
-    solicitud: suggestNextNum(meta.lastSolicitud),
-    inversion_inicial: '0',
-    bonificacion: '0',
-    monto_cuota: '',
-    num_cuotas: '10',
-  })
-
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [form, setForm] = useState({nombre:'',telefono:'',direccion:'',colonia:'',
+                                     cobrador_id:'1',paquete_id:'1',beneficiario:'',dia_pago:'5'})
   const [saving, setSaving] = useState(false)
-
-  // Calcular totales en tiempo real
-  const inv    = parseFloat(form.inversion_inicial) || 0
-  const boni   = parseFloat(form.bonificacion)      || 0
-  const cuota  = parseFloat(form.monto_cuota)       || 0
-  const cuotas = parseInt(form.num_cuotas)          || 0
-  const total  = inv + boni + (cuota * cuotas)
-  const saldo  = total - inv - boni
-
-  const upd = (k: string, v: string) => {
-    setForm(f => ({ ...f, [k]: v }))
-    if (errors[k]) setErrors(e => ({ ...e, [k]: '' }))
-  }
-
-  const inp = (styles?: React.CSSProperties) => ({
-    width: '100%', padding: '12px 14px', borderRadius: 12,
-    border: '1.5px solid var(--border)', background: 'var(--surface-2)',
-    color: 'var(--text)', fontSize: 14, outline: 'none', boxSizing: 'border-box' as const,
-    ...styles
-  })
-  const errInp = { border: '1.5px solid #dc2626' }
-  const label = (txt: string) => (
-    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-soft)', marginBottom: 5 }}>{txt}</div>
+  const F = ({f,l,p,t='text'}:{f:string;l:string;p:string;t?:string}) => (
+    <div>
+      <div style={{fontSize:12,fontWeight:600,color:'var(--text-soft)',marginBottom:5}}>{l}</div>
+      <input required type={t} value={(form as any)[f]}
+        onChange={e=>setForm({...form,[f]:e.target.value})} placeholder={p}
+        style={{width:'100%',padding:'12px 14px',borderRadius:12,border:'1.5px solid var(--border)',
+                background:'var(--surface-2)',color:'var(--text)',fontSize:14,outline:'none',boxSizing:'border-box'}}/>
+    </div>
   )
-  const errMsg = (k: string) => errors[k]
-    ? <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-        <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
-        {errors[k]}
-      </div>
-    : null
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const errs: Record<string, string> = {}
-    if (!form.nombre.trim()) errs.nombre = 'Requerido'
-    if (!form.ncontrato.trim()) errs.ncontrato = 'Requerido'
-    if (!form.monto_cuota || parseFloat(form.monto_cuota) <= 0) errs.monto_cuota = 'Ingresa la aportación'
-    if (Object.keys(errs).length) { setErrors(errs); return }
-    setSaving(true)
-    try { await onSave({ ...form, plan_id: parseInt(form.plan_id), dia_pago: parseInt(form.dia_pago) }) }
-    catch(err: any) {
-      const msg = err.message || 'Error'
-      if (msg.includes('ncontrato') || msg.includes('contrato')) setErrors(e => ({ ...e, ncontrato: msg }))
-      else if (msg.includes('solicitud')) setErrors(e => ({ ...e, solicitud: msg }))
-      else showT(msg, false)
-    }
+  const submit = async (e:React.FormEvent) => {
+    e.preventDefault(); setSaving(true)
+    try { await onSave({...form,cobrador_id:parseInt(form.cobrador_id),paquete_id:parseInt(form.paquete_id),dia_pago:parseInt(form.dia_pago)}) }
+    catch(err:any) { showT(err.message||'Error',false) }
     setSaving(false)
   }
-
-  // Secciones del formulario
-  const Section = ({ title }: { title: string }) => (
-    <div style={{ fontSize: 10, letterSpacing: '.18em', fontWeight: 700,
-                  color: 'var(--text-soft)', paddingTop: 8, paddingBottom: 2,
-                  borderTop: '1px solid var(--border)', marginTop: 4 }}>{title}</div>
-  )
-
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      style={{ position: 'fixed', inset: 0, zIndex: 90, display: 'flex', alignItems: 'flex-end',
-               background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}>
-      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 26, stiffness: 300 }}
-        style={{ width: '100%', background: 'var(--surface)', borderRadius: '22px 22px 0 0',
-                 padding: '6px 20px 40px', maxHeight: '94svh', overflowY: 'auto' }}>
-
-        <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border)', margin: '12px auto 20px' }}/>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ fontFamily: 'Cormorant Garamond,serif', fontSize: 24, color: 'var(--text)' }}>Nuevo contrato</div>
-          <button onClick={onClose} style={{ background: 'var(--surface-2)', border: 'none', borderRadius: 999,
-            width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+    <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+      style={{position:'fixed',inset:0,zIndex:90,display:'flex',alignItems:'flex-end',
+              background:'rgba(0,0,0,0.55)',backdropFilter:'blur(4px)'}}>
+      <motion.div initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',damping:26,stiffness:300}}
+        style={{width:'100%',background:'var(--surface)',borderRadius:'22px 22px 0 0',
+                padding:'6px 20px 36px',maxHeight:'92svh',overflowY:'auto'}}>
+        <div style={{width:36,height:4,borderRadius:2,background:'var(--border)',margin:'12px auto 20px'}}/>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+          <div style={{fontFamily:'Cormorant Garamond,serif',fontSize:24,color:'var(--text)'}}>Nuevo contrato</div>
+          <button onClick={onClose} style={{background:'var(--surface-2)',border:'none',borderRadius:999,
+            width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
             <Ic.x s={16} c="var(--text-soft)"/>
           </button>
         </div>
-
-        <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          {/* ── NÚMEROS DE CONTRATO ── */}
-          <Section title="NUMERACIÓN"/>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              {label(`N° CONTRATO * (último: ${meta.lastContrato || '—'})`)}
-              <input value={form.ncontrato} onChange={e => upd('ncontrato', e.target.value)}
-                placeholder="PMX-2026-009"
-                style={{ ...inp(), ...(errors.ncontrato ? errInp : {}) }}/>
-              {errMsg('ncontrato')}
-            </div>
-            <div>
-              {label(`SOLICITUD * (último: ${meta.lastSolicitud || '—'})`)}
-              <input value={form.solicitud} onChange={e => upd('solicitud', e.target.value)}
-                placeholder="930"
-                style={{ ...inp(), ...(errors.solicitud ? errInp : {}) }}/>
-              {errMsg('solicitud')}
-            </div>
-          </div>
-
-          {/* ── DATOS DEL TITULAR ── */}
-          <Section title="DATOS DEL TITULAR"/>
-
+        <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:12}}>
+          <F f="nombre" l="Nombre del titular" p="María González Pérez"/>
+          <F f="telefono" l="Teléfono / WhatsApp" p="998 200 0000" t="tel"/>
+          <F f="direccion" l="Dirección" p="Av. Tulum 123"/>
+          <F f="colonia" l="Colonia" p="Centro"/>
+          <F f="beneficiario" l="Beneficiario" p="Juan González"/>
           <div>
-            {label('Nombre completo *')}
-            <input value={form.nombre} onChange={e => upd('nombre', e.target.value)}
-              placeholder="María González Pérez"
-              style={{ ...inp(), ...(errors.nombre ? errInp : {}) }}/>
-            {errMsg('nombre')}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              {label('Teléfono / WhatsApp')}
-              <input type="tel" value={form.telefono} onChange={e => upd('telefono', e.target.value)}
-                placeholder="33 1116 7741" style={inp()}/>
-            </div>
-            <div>
-              {label('Estado civil')}
-              <select value={form.estado_civil} onChange={e => upd('estado_civil', e.target.value)} style={inp()}>
-                <option value="">— Seleccionar —</option>
-                <option>Soltero/a</option><option>Casado/a</option>
-                <option>Divorciado/a</option><option>Viudo/a</option><option>Unión libre</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            {label('Domicilio')}
-            <input value={form.domicilio} onChange={e => upd('domicilio', e.target.value)}
-              placeholder="Av. Hidalgo 123" style={inp()}/>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              {label('Colonia')}
-              <input value={form.colonia} onChange={e => upd('colonia', e.target.value)}
-                placeholder="Centro" style={inp()}/>
-            </div>
-            <div>
-              {label('Municipio')}
-              <input value={form.municipio} onChange={e => upd('municipio', e.target.value)}
-                placeholder="Capilla de Guadalupe" style={inp()}/>
-            </div>
-          </div>
-          <div>
-            {label('Beneficiario')}
-            <input value={form.beneficiario} onChange={e => upd('beneficiario', e.target.value)}
-              placeholder="Juan González" style={inp()}/>
-          </div>
-
-          {/* ── PLAN Y COBRADOR ── */}
-          <Section title="PLAN Y ASIGNACIÓN"/>
-
-          <div>
-            {label('Plan')}
-            <select value={form.plan_id} onChange={e => upd('plan_id', e.target.value)} style={inp()}>
-              {meta.planes?.map((p: any) => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
+            <div style={{fontSize:12,fontWeight:600,color:'var(--text-soft)',marginBottom:5}}>Paquete</div>
+            <select value={form.paquete_id} onChange={e=>setForm({...form,paquete_id:e.target.value})}
+              style={{width:'100%',padding:'12px 14px',borderRadius:12,border:'1.5px solid var(--border)',
+                      background:'var(--surface-2)',color:'var(--text)',fontSize:14,outline:'none'}}>
+              {meta.paquetes?.map((p:any)=><option key={p.id} value={p.id}>{p.nombre} — ${parseFloat(p.precio).toLocaleString()}</option>)}
             </select>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              {label('Cobrador asignado')}
-              <select value={form.cobrador_id} onChange={e => upd('cobrador_id', e.target.value)} style={inp()}>
-                {meta.cobradores?.map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.nombre} · Zona {c.zona}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              {label('Día de cobro')}
-              <input type="number" min="1" max="28" value={form.dia_pago}
-                onChange={e => upd('dia_pago', e.target.value)} style={inp()}/>
-            </div>
+          <div>
+            <div style={{fontSize:12,fontWeight:600,color:'var(--text-soft)',marginBottom:5}}>Cobrador asignado</div>
+            <select value={form.cobrador_id} onChange={e=>setForm({...form,cobrador_id:e.target.value})}
+              style={{width:'100%',padding:'12px 14px',borderRadius:12,border:'1.5px solid var(--border)',
+                      background:'var(--surface-2)',color:'var(--text)',fontSize:14,outline:'none'}}>
+              {meta.cobradores?.map((c:any)=><option key={c.id} value={c.id}>{c.nombre} · Zona {c.zona}</option>)}
+            </select>
           </div>
-
-          {/* ── FINANCIERO ── */}
-          <Section title="FINANCIERO"/>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              {label('Inversión inicial ($)')}
-              <input type="number" min="0" step="0.01" value={form.inversion_inicial}
-                onChange={e => upd('inversion_inicial', e.target.value)}
-                placeholder="0" style={inp()}/>
-              <div style={{ fontSize: 10, color: 'var(--text-soft)', marginTop: 3 }}>Puede ser $0</div>
-            </div>
-            <div>
-              {label('Bonificación empresa ($)')}
-              <input type="number" min="0" step="0.01" value={form.bonificacion}
-                onChange={e => upd('bonificacion', e.target.value)}
-                placeholder="0" style={inp()}/>
-            </div>
+          <div>
+            <div style={{fontSize:12,fontWeight:600,color:'var(--text-soft)',marginBottom:5}}>Día de cobro</div>
+            <input type="number" min="1" max="28" value={form.dia_pago}
+              onChange={e=>setForm({...form,dia_pago:e.target.value})}
+              style={{width:'100%',padding:'12px 14px',borderRadius:12,border:'1.5px solid var(--border)',
+                      background:'var(--surface-2)',color:'var(--text)',fontSize:14,outline:'none',boxSizing:'border-box'}}/>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              {label('Aportación por pago ($) *')}
-              <input type="number" min="0" step="0.01" value={form.monto_cuota}
-                onChange={e => upd('monto_cuota', e.target.value)}
-                placeholder="1,500.00"
-                style={{ ...inp(), ...(errors.monto_cuota ? errInp : {}) }}/>
-              {errMsg('monto_cuota')}
-              <div style={{ fontSize: 10, color: 'var(--text-soft)', marginTop: 3 }}>Editable en cada cobro</div>
-            </div>
-            <div>
-              {label('Número de cuotas')}
-              <input type="number" min="1" max="120" value={form.num_cuotas}
-                onChange={e => upd('num_cuotas', e.target.value)} style={inp()}/>
-            </div>
-          </div>
-
-          {/* Resumen calculado */}
-          {(inv > 0 || boni > 0 || cuota > 0) && (
-            <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)',
-                          borderRadius: 14, padding: '14px 16px' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', marginBottom: 10, letterSpacing: '.12em' }}>
-                RESUMEN FINANCIERO
-              </div>
-              {[
-                { l: 'Inversión inicial', v: `$${inv.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` },
-                { l: 'Bonificación', v: `$${boni.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` },
-                { l: `${cuotas} cuotas × $${cuota.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, v: `$${(cuota*cuotas).toLocaleString('es-MX', { minimumFractionDigits: 2 })}` },
-                { l: 'Total del plan', v: `$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, bold: true },
-                { l: 'Saldo a cubrir', v: `$${saldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, bold: true },
-              ].map(({ l, v, bold }, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between',
-                                      padding: '7px 0', borderBottom: i < 4 ? '1px solid rgba(124,58,237,0.1)' : undefined }}>
-                  <span style={{ fontSize: 12, color: 'var(--text-soft)' }}>{l}</span>
-                  <span style={{ fontSize: 13, fontWeight: bold ? 700 : 500, color: bold ? '#7C3AED' : 'var(--text)' }}>{v}</span>
-                </div>
-              ))}
-            </div>
-          )}
-
           <button type="submit" disabled={saving}
-            style={{ padding: '15px', borderRadius: 14, border: 'none', cursor: 'pointer', marginTop: 6,
-                     background: 'linear-gradient(135deg,#7C3AED,#6D28D9)', color: '#fff',
-                     fontSize: 15, fontWeight: 700, opacity: saving ? .5 : 1,
-                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            {saving ? 'Guardando...' : <><Ic.check s={16} c="#fff"/>Crear contrato</>}
+            style={{padding:'15px',borderRadius:14,border:'none',cursor:'pointer',marginTop:4,
+                    background:'linear-gradient(135deg,#7C3AED,#6D28D9)',color:'#fff',
+                    fontSize:15,fontWeight:700,opacity:saving?.5:1,
+                    display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+            {saving?'Guardando...':<><Ic.check s={16} c="#fff"/>Crear contrato</>}
           </button>
         </form>
       </motion.div>
@@ -333,6 +133,7 @@ function NuevoContratoModal({ meta, onSave, onClose, showT }:
   )
 }
 
+/* ─── DETALLE CONTRATO ─── */
 function ContratoDetalle({ contrato, onClose, onCancelar, onReestructurar, showT }:
   { contrato:any; onClose:()=>void; onCancelar:(id:number,motivo:string)=>Promise<void>;
     onReestructurar:(id:number,monto:number,dia:number)=>Promise<void>; showT:(m:string,ok?:boolean)=>void }) {
@@ -516,7 +317,7 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
       setContratos(ct.contratos_list||ct.contratos||s.contratos_list||[])
       setReportes(rp)
       setCobradores(s.cobradores||[])
-      setMeta({planes:m.planes||[],paquetes:m.planes||[],cobradores:m.cobradores||s.cobradores||[],lastContrato:m.lastContrato||null,lastSolicitud:m.lastSolicitud||null})
+      setMeta({paquetes:m.paquetes||[],cobradores:m.cobradores||s.cobradores||[]})
     } catch(e) { console.error(e) }
     setLoading(false)
   },[])
@@ -527,7 +328,7 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
     const r = await fetch('/api/contratos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)})
     const d = await r.json()
     if(!r.ok) throw new Error(d.error||'Error al crear')
-    showT(`Contrato ${d.ncontrato || d.folio} creado ✓`)
+    showT(`Contrato ${d.folio} creado ✓`)
     setNuevoModal(false)
     fetchAll()
   }
