@@ -1,9 +1,10 @@
-import { sql } from '@/lib/db'
+import { neon } from '@neondatabase/serverless'
 import { NextResponse } from 'next/server'
+const sql = neon('postgresql://neondb_owner:npg_n0apxAbS4FUm@ep-empty-frost-anstbj07-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require')
 export async function POST(req: Request) {
-  try {
-    const { contrato_id, cobrador_id, resultado, nota, lat, lng } = await req.json()
-    await sql`INSERT INTO visitas (contrato_id,cobrador_id,resultado,nota,lat_visita,lng_visita) VALUES (${contrato_id},${cobrador_id},${resultado},${nota||null},${lat||null},${lng||null})`
-    return NextResponse.json({ok:true})
-  } catch(e:any) { return NextResponse.json({error:e.message},{status:500}) }
+  const { contrato_id, cobrador_id, resultado, notas='' } = await req.json()
+  await sql`INSERT INTO pagos (contrato_id, cobrador_id, monto, metodo, notas)
+    SELECT ${contrato_id}, ${cobrador_id}, 0, 'visita', ${resultado||''} || ' ' || ${notas}
+    FROM contratos WHERE id=${contrato_id}`
+  return NextResponse.json({ ok:true })
 }
