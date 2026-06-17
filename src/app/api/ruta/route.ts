@@ -1,25 +1,27 @@
-import { sql } from '@/lib/db'
-import { NextResponse } from 'next/server'
-
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url)
-  const cobradorId = searchParams.get('cobrador_id')
-  if (!cobradorId) return NextResponse.json({ error: 'cobrador_id requerido' }, { status: 400 })
+import { neon } from '@neondatabase/serverless'
+import { NextRequest, NextResponse } from 'next/server'
+const sql = neon('postgresql://neondb_owner:npg_n0apxAbS4FUm@ep-empty-frost-anstbj07-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require')
+export async function GET(req: NextRequest) {
   try {
+    const cobrador_id = new URL(req.url).searchParams.get('cobrador_id')
     const ruta = await sql`
-      SELECT c.id as contrato_id, c.folio, c.monto_mensual, c.saldo_pendiente, c.estado,
-             cl.id as cliente_id, cl.nombre, cl.telefono, cl.direccion, cl.colonia, cl.lat, cl.lng,
-             p.nombre as paquete,
-             (SELECT COUNT(*) FROM pagos pg WHERE pg.contrato_id = c.id
-               AND DATE_TRUNC('month', pg.fecha) = DATE_TRUNC('month', CURRENT_DATE)) as pagos_este_mes
-      FROM contratos c
-      JOIN clientes cl ON c.cliente_id = cl.id
-      JOIN paquetes p ON c.paquete_id = p.id
-      WHERE cl.cobrador_id = ${cobradorId} AND c.activo = true
-      ORDER BY c.estado DESC, cl.nombre ASC
-    `
+      SELECT ct.id as contrato_id, ct.ncontrato, ct.monto_cuota as monto_mensual,
+        ct.saldo_pendiente, ct.estado, ct.dia_pago, ct.tipo_aportacion as frecuencia,
+        cl.id as cliente_id, cl.nombre, cl.telefono, cl.domicilio as direccion,
+        cl.colonia, cl.municipio,
+        p.clave as paquete, p.nombre as paquete_nombre,
+        GREATEST(0, EXTRACT(DAY FROM NOW()-(ct.fecha_inicio+INTERVAL '1 week'*ct.meses_pagados))::int) as dias_mora,
+        ct.meses_pagados as semanas_pagadas,
+        NULL::float as lat, NULL::float as lng
+      FROM contratos ct
+      JOIN clientes cl ON cl.id=ct.cliente_id
+      JOIN planes p ON p.id=ct.plan_id
+      WHERE ct.cobrador_id=${cobrador_id}
+        AND ct.activo AND ct.estado!='liquidado' AND ct.estado!='cancelado'
+        AND ct.saldo_pendiente>0
+      ORDER BY CASE ct.estado WHEN 'atrasado' THEN 0 ELSE 1 END, cl.nombre ASC`
     return NextResponse.json({ ruta })
-  } catch(e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+  } catch(e:any) {
+    return NextResponse.json({error:e.message},{status:500})
   }
 }
