@@ -236,7 +236,7 @@ export default function SocioApp({ onBack }: { onBack?: ()=>void }) {
           <>
             <div style={{fontSize:11,letterSpacing:'.18em',color:'var(--text-soft)',fontWeight:600,margin:'24px 0 12px'}}>ÚLTIMOS PAGOS</div>
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
-              {pagos.slice(0,6).map((p: any,i: number)=>(
+              {pagos.slice(0,12).map((p: any,i: number)=>(
                 <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
                                       padding:'14px 16px',background:'var(--surface)',borderRadius:14,
                                       border:'1px solid var(--border)'}}>
@@ -245,6 +245,13 @@ export default function SocioApp({ onBack }: { onBack?: ()=>void }) {
                     <div style={{fontSize:11,color:'var(--text-soft)',marginTop:2}}>
                       {p.metodo} · {new Date(p.fecha).toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'})}
                     </div>
+                    {p.recibo_num && (
+                      <a href={`/api/recibo/${p.recibo_num}`} target="_blank" rel="noreferrer"
+                        style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:6,fontSize:11,
+                                fontWeight:700,color:'#059669',textDecoration:'none'}}>
+                        <Ic.doc s={13} c="#059669"/>Ver recibo
+                      </a>
+                    )}
                   </div>
                   <div style={{textAlign:'right'}}>
                     <div style={{fontSize:15,fontWeight:700,color:'#16A34A'}}>+${parseFloat(p.monto).toLocaleString()}</div>

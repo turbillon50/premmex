@@ -106,7 +106,8 @@ export default function CobradorApp({ onBack }: { onBack?: ()=>void }) {
       const d = await r.json()
       if (!r.ok) { showToast(d.error||'Error',false); setPagando(false); return }
       setCobrados(p=>new Set(Array.from(p).concat(item.contrato_id)))
-      setRecibo({...item,recibo_num:d.recibo_num,metodo})
+      const nuevoSaldo = Math.max(0, parseFloat(item.saldo_pendiente||0) - parseFloat(item.monto_mensual||0))
+      setRecibo({...item,folio:d.folio,metodo,nuevoSaldo})
       setSelected(null); fetchRuta()
     } catch { showToast('Error de conexión',false) }
     setPagando(false)
@@ -261,16 +262,34 @@ export default function CobradorApp({ onBack }: { onBack?: ()=>void }) {
                 <Ic.check s={28} c="#16A34A"/>
               </div>
               <h3 className="text-xl font-serif mb-1">¡Cobro registrado!</h3>
-              <p className="text-2xl font-serif mt-2 mb-1" style={{color:'var(--brand)'}}>{recibo.recibo_num}</p>
-              <div className="mt-3 mb-5 space-y-1 text-sm" style={{color:'var(--text-soft)'}}>
+              <p className="text-2xl font-serif mt-2 mb-1" style={{color:'var(--brand)'}}>{recibo.folio}</p>
+              <div className="mt-3 mb-4 space-y-1 text-sm" style={{color:'var(--text-soft)'}}>
                 <div>Cliente: <span style={{color:'var(--text)'}}>{recibo.nombre}</span></div>
+                <div>Contrato: <span style={{color:'var(--text)'}}>{recibo.ncontrato}</span></div>
                 <div>Monto: <span style={{color:'#16A34A',fontWeight:600}}>${parseFloat(recibo.monto_mensual).toLocaleString()}</span></div>
-                <div>Método: <span style={{color:'var(--text)'}}>{recibo.metodo}</span></div>
+                <div>Saldo restante: <span style={{color:'var(--text)'}}>${parseFloat(recibo.nuevoSaldo||0).toLocaleString()}</span></div>
               </div>
-              <a href={`https://wa.me/52${recibo.telefono?.replace(/\D/g,'')}?text=${encodeURIComponent(`Hola ${recibo.nombre}, tu pago de $${parseFloat(recibo.monto_mensual).toLocaleString()} para PREMMEX fue registrado. Folio: ${recibo.recibo_num}. Saldo pendiente: $${parseFloat(recibo.saldo_pendiente).toLocaleString()}. ¡Gracias!`)}`}
-                target="_blank" rel="noreferrer" className="btn-primary w-full justify-center mb-2" style={{background:'#16A34A'}}>
-                <Ic.chat s={16} c="#fff"/>Enviar comprobante WA
-              </a>
+              {(() => {
+                const texto = `PREMMEX · Recibo ${recibo.folio}\nFecha: ${new Date().toLocaleDateString('es-MX')}\nCliente: ${recibo.nombre}\nContrato: ${recibo.ncontrato||''}\nAportación: $${parseFloat(recibo.monto_mensual).toLocaleString()} (${recibo.metodo})\nSaldo restante: $${parseFloat(recibo.nuevoSaldo||0).toLocaleString()}\n¡Gracias por su preferencia!`
+                return (
+                  <>
+                    <a href={`https://wa.me/52${recibo.telefono?.replace(/\D/g,'')}?text=${encodeURIComponent(texto)}`}
+                      target="_blank" rel="noreferrer" className="btn-primary w-full justify-center mb-2" style={{background:'#16A34A'}}>
+                      <Ic.chat s={16} c="#fff"/>Enviar por WhatsApp
+                    </a>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <button onClick={()=>{ navigator.clipboard?.writeText(texto).then(()=>showToast('Recibo copiado')).catch(()=>showToast('No se pudo copiar',false)) }}
+                        className="qa" style={{background:'var(--surface-2)',color:'var(--text)'}}>
+                        <Ic.doc s={15} c="var(--text)"/>Copiar
+                      </button>
+                      <a href={`/api/recibo/${recibo.folio}`} target="_blank" rel="noreferrer"
+                        className="qa" style={{background:'var(--surface-2)',color:'var(--text)',textDecoration:'none'}}>
+                        <Ic.doc s={15} c="var(--text)"/>Imprimir
+                      </a>
+                    </div>
+                  </>
+                )
+              })()}
               <button onClick={()=>setRecibo(null)} className="btn-outline w-full justify-center">Continuar ruta</button>
             </motion.div>
           </motion.div>
