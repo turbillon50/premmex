@@ -487,6 +487,12 @@ function ContratoDetalle({ contrato, onClose, onCancelar, onReestructurar, showT
         {/* Info */}
         {tab==='info' && (
           <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <a href={`/api/contratos/${contrato.id}/pdf`} target="_blank" rel="noreferrer"
+              style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:'13px',borderRadius:14,
+                      textDecoration:'none',background:'linear-gradient(135deg,#7C3AED,#6D28D9)',color:'#fff',
+                      fontSize:14,fontWeight:700,marginBottom:4}}>
+              <Ic.doc s={16} c="#fff"/>Contrato PDF
+            </a>
             {[
               {l:'Cobrador',v:contrato.cobrador||'—'},
               {l:'Zona',v:contrato.zona||'—'},
