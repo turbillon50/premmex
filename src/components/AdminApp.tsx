@@ -3,6 +3,21 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Ic, Mark, Toast, useTheme, ThemeBtn } from './shared'
 
+/* ── Exportar a CSV ── */
+function downloadCSV(filename: string, headers: string[], rows: (string|number)[][]) {
+  const esc = (v: any) => {
+    const s = String(v ?? '')
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  }
+  const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n')
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = filename; a.click()
+  URL.revokeObjectURL(url)
+}
+const money = (v: any) => `$${parseFloat(v||0).toLocaleString('es-MX')}`
+
 /* ─── LOGIN ─── */
 function PassLogin({ onLogin, onBack }: { onLogin:(p:string)=>Promise<void>; onBack?:()=>void }) {
   const [pass, setPass] = useState('')
@@ -82,10 +97,11 @@ function NuevoContratoModal({ meta, onSave, onClose, showT }:
     beneficiario: '', dia_pago: '5',
     ncontrato: suggestNext(meta.lastContrato),
     solicitud: suggestNextNum(meta.lastSolicitud),
+    inversion_total: '',
     inversion_inicial: '0',
     bonificacion: '0',
-    monto_cuota: '',
     num_cuotas: '10',
+    tipo_aportacion: 'mensual',
     lat: '', lng: '',
   })
   const [geoLoading, setGeoLoading] = useState(false)
@@ -107,13 +123,17 @@ function NuevoContratoModal({ meta, onSave, onClose, showT }:
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
 
-  // Calcular totales en tiempo real
+  // Matematica financiera en vivo (regla 18-jun): saldo = total - (inicial + bonificacion)
+  const total  = parseFloat(form.inversion_total)   || 0
   const inv    = parseFloat(form.inversion_inicial) || 0
   const boni   = parseFloat(form.bonificacion)      || 0
-  const cuota  = parseFloat(form.monto_cuota)       || 0
   const cuotas = parseInt(form.num_cuotas)          || 0
-  const total  = inv + boni + (cuota * cuotas)
-  const saldo  = total - inv - boni
+  const saldo  = Math.max(0, total - inv - boni)
+  const cuota  = cuotas > 0 ? saldo / cuotas : 0
+
+  // Validacion de duplicado en tiempo real contra las numeraciones existentes
+  const dupNContrato  = !!form.ncontrato && (meta.existentes?.ncontratos || []).some((n: string) => String(n) === String(form.ncontrato).trim())
+  const dupSolicitud  = !!form.solicitud && (meta.existentes?.solicitudes || []).some((s: string) => String(s) === String(form.solicitud).trim())
 
   const upd = (k: string, v: string) => {
     setForm(f => ({ ...f, [k]: v }))
@@ -142,7 +162,9 @@ function NuevoContratoModal({ meta, onSave, onClose, showT }:
     const errs: Record<string, string> = {}
     if (!form.nombre.trim()) errs.nombre = 'Requerido'
     if (!form.ncontrato.trim()) errs.ncontrato = 'Requerido'
-    if (!form.monto_cuota || parseFloat(form.monto_cuota) <= 0) errs.monto_cuota = 'Ingresa la aportación'
+    if (dupNContrato) errs.ncontrato = 'Ese n° de contrato ya existe'
+    if (dupSolicitud) errs.solicitud = 'Esa solicitud ya existe'
+    if (!form.inversion_total || parseFloat(form.inversion_total) <= 0) errs.inversion_total = 'Ingresa la inversión total'
     if (Object.keys(errs).length) { setErrors(errs); return }
     setSaving(true)
     try { await onSave({ ...form, plan_id: parseInt(form.plan_id), dia_pago: parseInt(form.dia_pago) }) }
@@ -191,15 +213,19 @@ function NuevoContratoModal({ meta, onSave, onClose, showT }:
               {label(`N° CONTRATO * (último: ${meta.lastContrato || '—'})`)}
               <input value={form.ncontrato} onChange={e => upd('ncontrato', e.target.value)}
                 placeholder="PMX-2026-009"
-                style={{ ...inp(), ...(errors.ncontrato ? errInp : {}) }}/>
-              {errMsg('ncontrato')}
+                style={{ ...inp(), ...((errors.ncontrato || dupNContrato) ? errInp : {}) }}/>
+              {dupNContrato
+                ? <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>Ese n° ya existe</div>
+                : errMsg('ncontrato')}
             </div>
             <div>
               {label(`SOLICITUD * (último: ${meta.lastSolicitud || '—'})`)}
               <input value={form.solicitud} onChange={e => upd('solicitud', e.target.value)}
                 placeholder="930"
-                style={{ ...inp(), ...(errors.solicitud ? errInp : {}) }}/>
-              {errMsg('solicitud')}
+                style={{ ...inp(), ...((errors.solicitud || dupSolicitud) ? errInp : {}) }}/>
+              {dupSolicitud
+                ? <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4 }}>Esa solicitud ya existe</div>
+                : errMsg('solicitud')}
             </div>
           </div>
 
@@ -297,6 +323,14 @@ function NuevoContratoModal({ meta, onSave, onClose, showT }:
           {/* ── FINANCIERO ── */}
           <Section title="FINANCIERO"/>
 
+          <div>
+            {label('Inversión total del plan ($) *')}
+            <input type="number" min="0" step="0.01" value={form.inversion_total}
+              onChange={e => upd('inversion_total', e.target.value)}
+              placeholder="18,000.00"
+              style={{ ...inp(), ...(errors.inversion_total ? errInp : {}) }}/>
+            {errMsg('inversion_total')}
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
               {label('Inversión inicial ($)')}
@@ -314,34 +348,33 @@ function NuevoContratoModal({ meta, onSave, onClose, showT }:
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              {label('Aportación por pago ($) *')}
-              <input type="number" min="0" step="0.01" value={form.monto_cuota}
-                onChange={e => upd('monto_cuota', e.target.value)}
-                placeholder="1,500.00"
-                style={{ ...inp(), ...(errors.monto_cuota ? errInp : {}) }}/>
-              {errMsg('monto_cuota')}
-              <div style={{ fontSize: 10, color: 'var(--text-soft)', marginTop: 3 }}>Editable en cada cobro</div>
-            </div>
-            <div>
-              {label('Número de cuotas')}
+              {label('Número de aportaciones')}
               <input type="number" min="1" max="120" value={form.num_cuotas}
                 onChange={e => upd('num_cuotas', e.target.value)} style={inp()}/>
             </div>
+            <div>
+              {label('Tipo de aportación')}
+              <select value={form.tipo_aportacion} onChange={e => upd('tipo_aportacion', e.target.value)} style={inp()}>
+                <option value="semanal">Semanal</option>
+                <option value="quincenal">Quincenal</option>
+                <option value="mensual">Mensual</option>
+              </select>
+            </div>
           </div>
 
-          {/* Resumen calculado */}
-          {(inv > 0 || boni > 0 || cuota > 0) && (
+          {/* Resumen calculado en vivo */}
+          {total > 0 && (
             <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)',
                           borderRadius: 14, padding: '14px 16px' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', marginBottom: 10, letterSpacing: '.12em' }}>
                 RESUMEN FINANCIERO
               </div>
               {[
-                { l: 'Inversión inicial', v: `$${inv.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` },
-                { l: 'Bonificación', v: `$${boni.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` },
-                { l: `${cuotas} cuotas × $${cuota.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, v: `$${(cuota*cuotas).toLocaleString('es-MX', { minimumFractionDigits: 2 })}` },
-                { l: 'Total del plan', v: `$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, bold: true },
+                { l: 'Inversión total', v: `$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` },
+                { l: 'Inversión inicial', v: `− $${inv.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` },
+                { l: 'Bonificación', v: `− $${boni.toLocaleString('es-MX', { minimumFractionDigits: 2 })}` },
                 { l: 'Saldo a cubrir', v: `$${saldo.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, bold: true },
+                { l: `${cuotas} aportaciones de`, v: `$${cuota.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, bold: true },
               ].map(({ l, v, bold }, i) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between',
                                       padding: '7px 0', borderBottom: i < 4 ? '1px solid rgba(124,58,237,0.1)' : undefined }}>
@@ -366,18 +399,34 @@ function NuevoContratoModal({ meta, onSave, onClose, showT }:
 }
 
 function ContratoDetalle({ contrato, onClose, onCancelar, onReestructurar, showT }:
-  { contrato:any; onClose:()=>void; onCancelar:(id:number,motivo:string)=>Promise<void>;
-    onReestructurar:(id:number,monto:number,dia:number)=>Promise<void>; showT:(m:string,ok?:boolean)=>void }) {
+  { contrato:any; onClose:()=>void; onCancelar:(id:string,motivo:string,accion:string)=>Promise<void>;
+    onReestructurar:(id:string,monto:number,dia:number)=>Promise<void>; showT:(m:string,ok?:boolean)=>void }) {
   const [tab, setTab] = useState<'info'|'cancelar'|'reestr'>('info')
   const [motivo, setMotivo] = useState('voluntario')
+  const [accion, setAccion] = useState<'suspender'|'cancelar'>('cancelar')
   const [monto, setMonto] = useState(String(contrato.monto_mensual||''))
-  const [dia, setDia] = useState('5')
+  const [dia, setDia] = useState(String(contrato.dia_pago||'5'))
   const [saving, setSaving] = useState(false)
-  const ec = (e:string) => e==='liquidado'?'#16A34A':e==='atrasado'||e==='cancelado'?'#EA580C':'var(--brand)'
+  const ec = (e:string) => e==='liquidado'?'#16A34A':e==='atrasado'||e==='cancelado'?'#EA580C':e==='suspendido'?'#d97706':'var(--brand)'
+
+  // Preview de deposito a favor (clausula tercera): inicial + aportaciones pagadas
+  const tot = parseFloat(contrato.monto_total)||0
+  const ini = parseFloat(contrato.inversion_inicial)||0
+  const bon = parseFloat(contrato.bonificacion)||0
+  const sal = parseFloat(contrato.saldo_pendiente)||0
+  const depositoPreview = ini + Math.max(0, (tot - ini - bon) - sal)
+  const cancelado = contrato.estado==='cancelado'
+  const suspendido = contrato.estado==='suspendido'
 
   const doCancelar = async () => {
     setSaving(true)
-    try { await onCancelar(contrato.id, motivo); onClose() }
+    try { await onCancelar(contrato.id, motivo, accion); onClose() }
+    catch(e:any) { showT(e.message||'Error',false) }
+    setSaving(false)
+  }
+  const doReactivar = async () => {
+    setSaving(true)
+    try { await onCancelar(contrato.id, '', 'reactivar'); onClose() }
     catch(e:any) { showT(e.message||'Error',false) }
     setSaving(false)
   }
@@ -455,31 +504,77 @@ function ContratoDetalle({ contrato, onClose, onCancelar, onReestructurar, showT
             ))}
           </div>
         )}
-        {/* Cancelar */}
+        {/* Cancelar / Suspender / Reactivar */}
         {tab==='cancelar' && (
           <div style={{display:'flex',flexDirection:'column',gap:14}}>
-            <div style={{padding:'14px',borderRadius:14,background:'rgba(220,38,38,0.06)',
-                          border:'1px solid rgba(220,38,38,0.2)'}}>
-              <div style={{fontSize:13,color:'#dc2626',fontWeight:600,marginBottom:4}}>⚠️ Esta acción es irreversible</div>
-              <div style={{fontSize:12,color:'var(--text-soft)'}}>El contrato quedará cancelado y no podrá reactivarse.</div>
-            </div>
-            <div>
-              <div style={{fontSize:12,fontWeight:600,color:'var(--text-soft)',marginBottom:6}}>Motivo</div>
-              <select value={motivo} onChange={e=>setMotivo(e.target.value)}
-                style={{width:'100%',padding:'12px 14px',borderRadius:12,border:'1.5px solid var(--border)',
-                        background:'var(--surface-2)',color:'var(--text)',fontSize:14,outline:'none'}}>
-                <option value="voluntario">Decisión voluntaria</option>
-                <option value="pago">Falta de pago</option>
-                <option value="fallecimiento">Fallecimiento del titular</option>
-                <option value="otro">Otro motivo</option>
-              </select>
-            </div>
-            <button onClick={doCancelar} disabled={saving}
-              style={{padding:'14px',borderRadius:14,border:'none',cursor:'pointer',
-                      background:'#dc2626',color:'#fff',fontSize:14,fontWeight:700,
-                      opacity:saving?.5:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
-              {saving?'Cancelando...':<><Ic.cancel s={16} c="#fff"/>Confirmar cancelación</>}
-            </button>
+            {(cancelado||suspendido) ? (
+              <>
+                <div style={{padding:'14px',borderRadius:14,background:`${ec(contrato.estado)}10`,
+                              border:`1px solid ${ec(contrato.estado)}33`}}>
+                  <div style={{fontSize:13,color:ec(contrato.estado),fontWeight:700,marginBottom:4,textTransform:'capitalize'}}>
+                    Contrato {contrato.estado}
+                  </div>
+                  {contrato.motivo_cancelacion && <div style={{fontSize:12,color:'var(--text-soft)'}}>Motivo: {contrato.motivo_cancelacion}</div>}
+                  {cancelado && parseFloat(contrato.deposito_favor||0)>0 && (
+                    <div style={{fontSize:13,color:'var(--text)',marginTop:8,fontWeight:600}}>
+                      Depósito a favor del titular: <span style={{color:'#16A34A'}}>${parseFloat(contrato.deposito_favor).toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+                <button onClick={doReactivar} disabled={saving}
+                  style={{padding:'14px',borderRadius:14,border:'none',cursor:'pointer',
+                          background:'var(--brand)',color:'#fff',fontSize:14,fontWeight:700,
+                          opacity:saving?.5:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+                  {saving?'Reactivando...':<><Ic.undo s={16} c="#fff"/>Reactivar contrato</>}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{display:'flex',gap:6}}>
+                  {[{k:'suspender',l:'Suspender'},{k:'cancelar',l:'Cancelar'}].map(a=>(
+                    <button key={a.k} onClick={()=>setAccion(a.k as any)}
+                      style={{flex:1,padding:'10px',borderRadius:10,cursor:'pointer',fontSize:13,fontWeight:600,
+                              border:`1px solid ${accion===a.k?(a.k==='cancelar'?'#dc2626':'#d97706'):'var(--border)'}`,
+                              background:accion===a.k?(a.k==='cancelar'?'rgba(220,38,38,0.08)':'rgba(217,119,6,0.08)'):'var(--surface-2)',
+                              color:accion===a.k?(a.k==='cancelar'?'#dc2626':'#d97706'):'var(--text-soft)'}}>
+                      {a.l}
+                    </button>
+                  ))}
+                </div>
+                {accion==='suspender' ? (
+                  <div style={{padding:'14px',borderRadius:14,background:'rgba(217,119,6,0.06)',border:'1px solid rgba(217,119,6,0.2)'}}>
+                    <div style={{fontSize:13,color:'#d97706',fontWeight:600,marginBottom:4}}>Suspensión temporal</div>
+                    <div style={{fontSize:12,color:'var(--text-soft)'}}>Hasta 3 meses consecutivos o 6 acumulados (cláusula tercera). Se puede reactivar.</div>
+                  </div>
+                ) : (
+                  <div style={{padding:'14px',borderRadius:14,background:'rgba(220,38,38,0.06)',border:'1px solid rgba(220,38,38,0.2)'}}>
+                    <div style={{fontSize:13,color:'#dc2626',fontWeight:600,marginBottom:4}}>Cancelación de contrato</div>
+                    <div style={{fontSize:12,color:'var(--text-soft)',marginBottom:8}}>Lo invertido queda como depósito a favor del titular (cláusula tercera).</div>
+                    <div style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>
+                      Depósito a favor estimado: <span style={{color:'#16A34A'}}>${depositoPreview.toLocaleString('es-MX',{minimumFractionDigits:2})}</span>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <div style={{fontSize:12,fontWeight:600,color:'var(--text-soft)',marginBottom:6}}>Motivo</div>
+                  <select value={motivo} onChange={e=>setMotivo(e.target.value)}
+                    style={{width:'100%',padding:'12px 14px',borderRadius:12,border:'1.5px solid var(--border)',
+                            background:'var(--surface-2)',color:'var(--text)',fontSize:14,outline:'none'}}>
+                    <option value="voluntario">Decisión voluntaria</option>
+                    <option value="pago">Falta de pago</option>
+                    <option value="causa mayor">Causa mayor</option>
+                    <option value="fallecimiento">Fallecimiento del titular</option>
+                    <option value="otro">Otro motivo</option>
+                  </select>
+                </div>
+                <button onClick={doCancelar} disabled={saving}
+                  style={{padding:'14px',borderRadius:14,border:'none',cursor:'pointer',
+                          background:accion==='cancelar'?'#dc2626':'#d97706',color:'#fff',fontSize:14,fontWeight:700,
+                          opacity:saving?.5:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+                  {saving?'Guardando...':<><Ic.cancel s={16} c="#fff"/>{accion==='cancelar'?'Confirmar cancelación':'Suspender contrato'}</>}
+                </button>
+              </>
+            )}
           </div>
         )}
         {/* Reestructurar */}
@@ -622,14 +717,17 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
     fetchAll()
   }
 
-  const cancelarContrato = async (id:number, motivo:string) => {
-    const r = await fetch('/api/admin/cancelar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contrato_id:id,motivo})})
-    if(!r.ok) throw new Error('Error al cancelar')
-    showT('Contrato cancelado')
+  const cancelarContrato = async (id:string, motivo:string, accion:string='cancelar') => {
+    const r = await fetch('/api/admin/cancelar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contrato_id:id,motivo,accion})})
+    const d = await r.json().catch(()=>({}))
+    if(!r.ok) throw new Error(d.error||'Error al procesar')
+    if(accion==='cancelar') showT(`Contrato cancelado · depósito a favor $${parseFloat(d.deposito_favor||0).toLocaleString()}`)
+    else if(accion==='suspender') showT('Contrato suspendido')
+    else showT('Contrato reactivado')
     fetchAll()
   }
 
-  const reestructurar = async (id:number, monto:number, dia:number) => {
+  const reestructurar = async (id:string, monto:number, dia:number) => {
     const r = await fetch('/api/admin/reestructurar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contrato_id:id,nuevo_mensual:monto,dia_pago:dia})})
     if(!r.ok) throw new Error('Error')
     showT('Reestructuración aplicada')
@@ -645,7 +743,7 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
 
   if(!session) return <PassLogin onLogin={handleLogin} onBack={onBack}/>
 
-  const estColor = (e:string) => e==='liquidado'?'#16A34A':e==='atrasado'||e==='cancelado'?'#EA580C':'var(--brand)'
+  const estColor = (e:string) => e==='liquidado'?'#16A34A':e==='atrasado'||e==='cancelado'?'#EA580C':e==='suspendido'?'#d97706':'var(--brand)'
   const contratosFiltrados = contratos.filter(c =>
     !filtro || c.cliente?.toLowerCase().includes(filtro.toLowerCase()) ||
     c.folio?.toLowerCase().includes(filtro.toLowerCase())
@@ -980,47 +1078,99 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
         <div style={{padding:'16px 20px'}}>
           {reportes && (
             <>
-              {/* Comparativo meses */}
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:20}}>
-                <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:14,padding:'14px'}}>
-                  <div style={{fontSize:11,color:'var(--text-soft)',fontWeight:600,marginBottom:6}}>MES ACTUAL</div>
-                  <div style={{fontFamily:'Cormorant Garamond,serif',fontSize:26,color:'#16A34A',fontWeight:500}}>
-                    ${parseFloat(reportes.mes_actual||0).toLocaleString()}
+              {/* Resumen de cobranza */}
+              <div style={{fontSize:11,letterSpacing:'.18em',color:'var(--text-soft)',fontWeight:600,marginBottom:10}}>COBRANZA</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8,marginBottom:20}}>
+                {[
+                  {l:'Hoy',v:reportes.resumen?.cobrado_hoy,c:'#16A34A'},
+                  {l:'Semana',v:reportes.resumen?.cobrado_semana,c:'#0EA5E9'},
+                  {l:'Mes',v:reportes.resumen?.cobrado_mes,c:'#7C3AED'},
+                ].map(({l,v,c},i)=>(
+                  <div key={i} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:14,padding:'12px'}}>
+                    <div style={{fontSize:10,color:'var(--text-soft)',fontWeight:600,marginBottom:5}}>{l.toUpperCase()}</div>
+                    <div style={{fontFamily:'Cormorant Garamond,serif',fontSize:20,color:c,fontWeight:500}}>{money(v)}</div>
                   </div>
+                ))}
+              </div>
+
+              {/* Cobranza por cobrador */}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                <div style={{fontSize:11,letterSpacing:'.18em',color:'var(--text-soft)',fontWeight:600}}>COBRANZA POR COBRADOR</div>
+                <button onClick={()=>downloadCSV('cobranza_por_cobrador.csv',
+                  ['Cobrador','Zona','Hoy','Semana','Mes','Contratos activos'],
+                  (reportes.cobranza_cobrador||[]).map((c:any)=>[c.nombre,c.zona||'',c.hoy,c.semana,c.mes,c.contratos_activos]))}
+                  style={{display:'flex',alignItems:'center',gap:5,padding:'6px 11px',borderRadius:9,cursor:'pointer',
+                    border:'1px solid var(--border)',background:'var(--surface-2)',color:'var(--brand)',fontSize:11,fontWeight:700}}>
+                  <Ic.doc s={13} c="var(--brand)"/>CSV
+                </button>
+              </div>
+              <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:14,overflow:'hidden',marginBottom:20}}>
+                <div style={{display:'grid',gridTemplateColumns:'1.6fr 1fr 1fr 1fr',padding:'10px 14px',
+                              background:'var(--surface-2)',fontSize:10,fontWeight:700,color:'var(--text-soft)',letterSpacing:'.06em'}}>
+                  <span>COBRADOR</span><span style={{textAlign:'right'}}>HOY</span><span style={{textAlign:'right'}}>SEMANA</span><span style={{textAlign:'right'}}>MES</span>
+                </div>
+                {(reportes.cobranza_cobrador||[]).map((c:any,i:number)=>(
+                  <div key={i} style={{display:'grid',gridTemplateColumns:'1.6fr 1fr 1fr 1fr',padding:'12px 14px',
+                                        borderTop:'1px solid var(--border)',fontSize:12,alignItems:'center'}}>
+                    <div><div style={{fontWeight:600,color:'var(--text)'}}>{c.nombre}</div>
+                      <div style={{fontSize:10,color:'var(--text-soft)'}}>Zona {c.zona||'—'}</div></div>
+                    <span style={{textAlign:'right',color:'var(--text-soft)'}}>{money(c.hoy)}</span>
+                    <span style={{textAlign:'right',color:'var(--text-soft)'}}>{money(c.semana)}</span>
+                    <span style={{textAlign:'right',fontWeight:700,color:'var(--brand)'}}>{money(c.mes)}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Proyeccion de ingresos */}
+              <div style={{fontSize:11,letterSpacing:'.18em',color:'var(--text-soft)',fontWeight:600,marginBottom:10}}>PROYECCIÓN POR APORTACIONES PACTADAS</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:20}}>
+                <div style={{background:'rgba(124,58,237,0.06)',border:'1px solid rgba(124,58,237,0.2)',borderRadius:14,padding:'14px'}}>
+                  <div style={{fontSize:10,color:'var(--text-soft)',fontWeight:600,marginBottom:5}}>INGRESO MENSUAL ESPERADO</div>
+                  <div style={{fontFamily:'Cormorant Garamond,serif',fontSize:24,color:'#7C3AED',fontWeight:500}}>{money(reportes.proyeccion?.proyeccion_mensual)}</div>
                 </div>
                 <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:14,padding:'14px'}}>
-                  <div style={{fontSize:11,color:'var(--text-soft)',fontWeight:600,marginBottom:6}}>MES ANTERIOR</div>
-                  <div style={{fontFamily:'Cormorant Garamond,serif',fontSize:26,color:'var(--text-soft)',fontWeight:500}}>
-                    ${parseFloat(reportes.mes_anterior||0).toLocaleString()}
-                  </div>
+                  <div style={{fontSize:10,color:'var(--text-soft)',fontWeight:600,marginBottom:5}}>TOTAL POR COBRAR</div>
+                  <div style={{fontFamily:'Cormorant Garamond,serif',fontSize:24,color:'var(--text)',fontWeight:500}}>{money(reportes.proyeccion?.total_por_cobrar)}</div>
+                  <div style={{fontSize:10,color:'var(--text-soft)',marginTop:2}}>{reportes.proyeccion?.contratos_por_cobrar||0} contratos activos</div>
                 </div>
               </div>
 
-              {/* Eficiencia cobradores */}
-              <div style={{fontSize:11,letterSpacing:'.18em',color:'var(--text-soft)',fontWeight:600,marginBottom:10}}>EFICIENCIA POR COBRADOR</div>
-              <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20}}>
-                {(reportes.por_cobrador||[]).map((c:any,i:number)=>{
-                  const pct = Math.min(100, Math.round((parseFloat(c.cobrado_mes||0)/20000)*100))
-                  return (
-                    <div key={i} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:13,padding:'13px 14px'}}>
-                      <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-                        <div>
-                          <div style={{fontSize:13,fontWeight:600,color:'var(--text)'}}>{c.nombre}</div>
-                          <div style={{fontSize:11,color:'var(--text-soft)'}}>Zona {c.zona}</div>
-                        </div>
-                        <div style={{textAlign:'right'}}>
-                          <div style={{fontWeight:700,color:'var(--brand)'}}>${parseFloat(c.cobrado_mes||0).toLocaleString()}</div>
-                          <div style={{fontSize:11,color:'var(--text-soft)'}}>{pct}%</div>
-                        </div>
+              {/* Contratos atrasados */}
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                <div style={{fontSize:11,letterSpacing:'.18em',color:'#EA580C',fontWeight:600}}>CONTRATOS ATRASADOS</div>
+                {(reportes.atrasados||[]).length>0 && (
+                  <button onClick={()=>downloadCSV('contratos_atrasados.csv',
+                    ['Contrato','Cliente','Cobrador','Dias atraso','Monto vencido','Saldo'],
+                    (reportes.atrasados||[]).map((c:any)=>[c.folio,c.cliente,c.cobrador||'',c.dias_atraso,c.monto_vencido,c.saldo_pendiente]))}
+                    style={{display:'flex',alignItems:'center',gap:5,padding:'6px 11px',borderRadius:9,cursor:'pointer',
+                      border:'1px solid var(--border)',background:'var(--surface-2)',color:'#EA580C',fontSize:11,fontWeight:700}}>
+                    <Ic.doc s={13} c="#EA580C"/>CSV
+                  </button>
+                )}
+              </div>
+              {(reportes.atrasados||[]).length===0 ? (
+                <div style={{padding:'20px',textAlign:'center',color:'var(--text-soft)',fontSize:13,
+                              background:'var(--surface)',borderRadius:14,border:'1px solid var(--border)',marginBottom:20}}>
+                  Sin contratos atrasados 🎉
+                </div>
+              ) : (
+                <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:20}}>
+                  {(reportes.atrasados||[]).map((c:any,i:number)=>(
+                    <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+                                          padding:'12px 14px',background:'rgba(234,88,12,0.05)',
+                                          border:'1px solid rgba(234,88,12,0.2)',borderRadius:12}}>
+                      <div>
+                        <div style={{fontSize:13,fontWeight:600,color:'var(--text)'}}>{c.cliente}</div>
+                        <div style={{fontSize:11,color:'var(--text-soft)'}}>{c.folio} · {c.cobrador||'—'}</div>
                       </div>
-                      <div style={{height:5,borderRadius:999,background:'var(--surface-2)',overflow:'hidden'}}>
-                        <div style={{height:'100%',width:`${pct}%`,borderRadius:999,transition:'width 1s',
-                                      background:pct>=80?'#16A34A':'var(--brand)'}}/>
+                      <div style={{textAlign:'right'}}>
+                        <div style={{fontSize:13,fontWeight:700,color:'#EA580C'}}>{c.dias_atraso} días</div>
+                        <div style={{fontSize:11,color:'var(--text-soft)'}}>vencido {money(c.monto_vencido)}</div>
                       </div>
                     </div>
-                  )
-                })}
-              </div>
+                  ))}
+                </div>
+              )}
 
               {/* Estado de cartera */}
               <div style={{fontSize:11,letterSpacing:'.18em',color:'var(--text-soft)',fontWeight:600,marginBottom:10}}>ESTADO DE CARTERA</div>
@@ -1031,44 +1181,18 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
                                         borderBottom:i<arr.length-1?'1px solid var(--border)':undefined}}>
                     <div style={{display:'flex',alignItems:'center',gap:8}}>
                       <div style={{width:8,height:8,borderRadius:'50%',
-                                    background:c.estado==='al_corriente'?'#16A34A':c.estado==='atrasado'?'#EA580C':'var(--text-soft)'}}/>
+                                    background:c.estado==='al_corriente'||c.estado==='liquidado'?'#16A34A':c.estado==='atrasado'?'#EA580C':'var(--text-soft)'}}/>
                       <span style={{fontSize:13,color:'var(--text)',textTransform:'capitalize',fontWeight:500}}>
                         {c.estado?.replace('_',' ')}
                       </span>
                     </div>
                     <div style={{textAlign:'right'}}>
                       <span style={{fontSize:13,fontWeight:700,color:'var(--text)'}}>{c.total} contratos</span>
-                      <span style={{fontSize:11,color:'var(--text-soft)',marginLeft:8}}>
-                        ${parseFloat(c.saldo||0).toLocaleString()}
-                      </span>
+                      <span style={{fontSize:11,color:'var(--text-soft)',marginLeft:8}}>{money(c.saldo)}</span>
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Contratos en riesgo */}
-              {(reportes.riesgo||[]).length>0 && (
-                <>
-                  <div style={{fontSize:11,letterSpacing:'.18em',color:'#EA580C',fontWeight:600,margin:'20px 0 10px'}}>
-                    ⚠️ CONTRATOS EN RIESGO
-                  </div>
-                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                    {(reportes.riesgo||[]).map((c:any,i:number)=>(
-                      <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-                                            padding:'11px 14px',background:'rgba(234,88,12,0.05)',
-                                            border:'1px solid rgba(234,88,12,0.2)',borderRadius:12}}>
-                        <div>
-                          <div style={{fontSize:13,fontWeight:600,color:'var(--text)'}}>{c.nombre}</div>
-                          <div style={{fontSize:11,color:'var(--text-soft)'}}>{c.cobrador} · {c.folio}</div>
-                        </div>
-                        <div style={{fontSize:13,fontWeight:700,color:'#EA580C'}}>
-                          ${parseFloat(c.monto_mensual||0).toLocaleString()}/mes
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
             </>
           )}
         </div>
