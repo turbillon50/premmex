@@ -33,8 +33,11 @@ export async function POST(req: Request) {
       nombre, telefono, domicilio, colonia, municipio, estado_civil, ocupacion,
       cobrador_id, plan_id, beneficiario, dia_pago,
       ncontrato, solicitud,
-      inversion_inicial, bonificacion, monto_cuota, num_cuotas
+      inversion_inicial, bonificacion, monto_cuota, num_cuotas,
+      lat, lng
     } = body
+    const latNum = lat !== undefined && lat !== null && String(lat).trim() !== '' ? parseFloat(lat) : null
+    const lngNum = lng !== undefined && lng !== null && String(lng).trim() !== '' ? parseFloat(lng) : null
 
     // Validar ncontrato único
     const [dupN] = await sql`SELECT id FROM contratos WHERE ncontrato = ${ncontrato}`
@@ -48,8 +51,8 @@ export async function POST(req: Request) {
 
     // Crear cliente
     const [cliente] = await sql`
-      INSERT INTO clientes (nombre, telefono, domicilio, colonia, municipio, estado_civil, ocupacion, cobrador_id)
-      VALUES (${nombre}, ${telefono}, ${domicilio||''}, ${colonia||''}, ${municipio||'Capilla de Guadalupe'}, ${estado_civil||null}, ${ocupacion||null}, ${cobrador_id})
+      INSERT INTO clientes (nombre, telefono, domicilio, colonia, municipio, estado_civil, ocupacion, cobrador_id, lat, lng)
+      VALUES (${nombre}, ${telefono}, ${domicilio||''}, ${colonia||''}, ${municipio||'Capilla de Guadalupe'}, ${estado_civil||null}, ${ocupacion||null}, ${cobrador_id}, ${latNum}, ${lngNum})
       RETURNING id`
 
     // Calcular financiero

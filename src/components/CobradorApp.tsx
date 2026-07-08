@@ -40,6 +40,15 @@ export default function CobradorApp({ onBack }: { onBack?: ()=>void }) {
 
   useEffect(() => { if (session) fetchRuta() }, [session, fetchRuta])
 
+  // Handler global para el boton "Registrar cobro" dentro del popup de Leaflet
+  useEffect(() => {
+    (window as any).__pmxSelectCliente = (cid: string) => {
+      const idx = ruta.findIndex((r:any)=>String(r.contrato_id)===String(cid))
+      if (idx>=0) { setTabActivo('ruta'); setSelected(idx) }
+    }
+    return () => { try { delete (window as any).__pmxSelectCliente } catch {} }
+  }, [ruta])
+
   useEffect(() => {
     if (tabActivo !== 'mapa' || !ruta.length || typeof window === 'undefined') return
     setTimeout(() => {
@@ -60,8 +69,13 @@ export default function CobradorApp({ onBack }: { onBack?: ()=>void }) {
           iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
           shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
         })
-        const map = leaflet.map('premmex-map').setView([21.1619,-86.8515],13)
-        leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM'}).addTo(map)
+        const conCoords = ruta.filter((c:any)=>c.lat&&c.lng)
+        const center = conCoords.length
+          ? [parseFloat(conCoords[0].lat), parseFloat(conCoords[0].lng)]
+          : [20.9585,-102.4720] // Capilla de Guadalupe, Jalisco
+        const map = leaflet.map('premmex-map').setView(center,14)
+        leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19}).addTo(map)
+        const bounds:any[] = []
         ruta.forEach((c: any) => {
           if (!c.lat||!c.lng) return
           const paid = cobrados.has(c.contrato_id)
@@ -70,10 +84,16 @@ export default function CobradorApp({ onBack }: { onBack?: ()=>void }) {
             html:`<div style="width:34px;height:34px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;box-shadow:0 3px 10px rgba(0,0,0,0.35);border:2px solid #fff">${paid?'✓':'●'}</div>`,
             iconSize:[34,34],className:''
           })
+          const atraso = parseInt(c.dias_mora||'0')>0 ? `<div style="color:#EA580C;font-size:12px">${c.dias_mora} días de atraso</div>` : ''
+          const btn = paid
+            ? `<div style="color:#16A34A;font-weight:700;margin-top:6px">✓ Cobrado hoy</div>`
+            : `<button onclick="window.__pmxSelectCliente&&window.__pmxSelectCliente('${c.contrato_id}')" style="margin-top:8px;width:100%;padding:8px;border:none;border-radius:8px;background:#0EA5E9;color:#fff;font-weight:700;font-size:12px;cursor:pointer">Registrar cobro</button>`
           leaflet.marker([parseFloat(c.lat),parseFloat(c.lng)],{icon})
             .addTo(map)
-            .bindPopup(`<b>${c.nombre}</b><br>${c.direccion}<br><span style="color:${color};font-weight:700">$${parseFloat(c.monto_mensual).toLocaleString()}</span>`)
+            .bindPopup(`<div style="min-width:160px"><b style="font-size:14px">${c.nombre}</b><br><span style="color:#666;font-size:12px">${c.direccion||''}, ${c.colonia||''}</span>${atraso}<div style="margin-top:5px;font-size:12px">Saldo: <b>$${parseFloat(c.saldo_pendiente||0).toLocaleString()}</b></div><div style="font-size:12px">Aportación: <b style="color:${color}">$${parseFloat(c.monto_mensual||0).toLocaleString()}</b></div>${btn}</div>`)
+          bounds.push([parseFloat(c.lat),parseFloat(c.lng)])
         })
+        if (bounds.length>1) { try { map.fitBounds(bounds,{padding:[40,40]}) } catch{} }
       }).catch(()=>{})
     },400)
   },[tabActivo,ruta,cobrados])

@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Ic, Mark, Toast, useTheme, ThemeBtn } from './shared'
 
@@ -86,7 +86,23 @@ function NuevoContratoModal({ meta, onSave, onClose, showT }:
     bonificacion: '0',
     monto_cuota: '',
     num_cuotas: '10',
+    lat: '', lng: '',
   })
+  const [geoLoading, setGeoLoading] = useState(false)
+
+  const usarMiUbicacion = () => {
+    if (!navigator.geolocation) { showT('Geolocalización no disponible', false); return }
+    setGeoLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setForm(f => ({ ...f, lat: pos.coords.latitude.toFixed(6), lng: pos.coords.longitude.toFixed(6) }))
+        setGeoLoading(false)
+        showT('Ubicación capturada ✓')
+      },
+      () => { setGeoLoading(false); showT('No se pudo obtener la ubicación', false) },
+      { enableHighAccuracy: true, timeout: 8000 }
+    )
+  }
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -227,6 +243,22 @@ function NuevoContratoModal({ meta, onSave, onClose, showT }:
               {label('Municipio')}
               <input value={form.municipio} onChange={e => upd('municipio', e.target.value)}
                 placeholder="Capilla de Guadalupe" style={inp()}/>
+            </div>
+          </div>
+          {/* Ubicación para el mapa */}
+          <div>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
+              {label('Ubicación (mapa)')}
+              <button type="button" onClick={usarMiUbicacion} disabled={geoLoading}
+                style={{display:'flex',alignItems:'center',gap:5,padding:'5px 10px',borderRadius:9,cursor:'pointer',
+                        border:'1px solid var(--border)',background:'var(--brand-soft)',color:'var(--brand)',
+                        fontSize:11,fontWeight:700,opacity:geoLoading?.5:1}}>
+                <Ic.pin s={13} c="var(--brand)"/>{geoLoading?'Ubicando...':'Usar mi ubicación'}
+              </button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              <input value={form.lat} onChange={e => upd('lat', e.target.value)} placeholder="Lat (20.958)" style={inp()}/>
+              <input value={form.lng} onChange={e => upd('lng', e.target.value)} placeholder="Lng (-102.472)" style={inp()}/>
             </div>
           </div>
           <div>
@@ -482,7 +514,11 @@ function ContratoDetalle({ contrato, onClose, onCancelar, onReestructurar, showT
 export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
   const [session, setSession] = useState(false)
   const { theme, toggle } = useTheme()
-  const [tab, setTab] = useState<'inicio'|'contratos'|'cobradores'|'reportes'|'leads'>('inicio')
+  const [tab, setTab] = useState<'inicio'|'contratos'|'cobradores'|'reportes'|'leads'|'mapa'>('inicio')
+  const [mapaClientes, setMapaClientes] = useState<any[]>([])
+  const [mapFiltroCobrador, setMapFiltroCobrador] = useState('')
+  const [mapFiltroEstado, setMapFiltroEstado] = useState<'todos'|'al_corriente'|'atrasado'>('todos')
+  const mapInstance = useRef<any>(null)
   const [stats, setStats] = useState<any>(null)
   const [contratos, setContratos] = useState<any[]>([])
   const [cobradores, setCobradores] = useState<any[]>([])
@@ -507,24 +543,75 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [s,ct,rp,m,ld] = await Promise.all([
+      const [s,ct,rp,m,ld,mp] = await Promise.all([
         fetch('/api/stats').then(x=>x.json()),
         fetch('/api/contratos').then(x=>x.json()),
         fetch('/api/admin/reportes').then(x=>x.json()),
         fetch('/api/contratos').then(x=>x.json()),
         fetch('/api/leads').then(x=>x.json()).catch(()=>({leads:[]})),
+        fetch('/api/admin/mapa').then(x=>x.json()).catch(()=>({clientes:[]})),
       ])
       setStats(s)
       setContratos(ct.contratos_list||ct.contratos||s.contratos_list||[])
       setReportes(rp)
       setCobradores(s.cobradores||[])
       setLeads(ld.leads||[])
+      setMapaClientes(mp.clientes||[])
       setMeta({planes:m.planes||[],paquetes:m.planes||[],cobradores:m.cobradores||s.cobradores||[],lastContrato:m.lastContrato||null,lastSolicitud:m.lastSolicitud||null})
     } catch(e) { console.error(e) }
     setLoading(false)
   },[])
 
   useEffect(()=>{ if(session) fetchAll() },[session,fetchAll])
+
+  // ── Mapa general (Leaflet + OSM) ──
+  useEffect(() => {
+    if (tab!=='mapa' || typeof window==='undefined') return
+    let cancelled = false
+    const t = setTimeout(() => {
+      const el = document.getElementById('admin-map')
+      if (!el) return
+      if (!document.getElementById('leaflet-css')) {
+        const link = document.createElement('link')
+        link.id='leaflet-css'; link.rel='stylesheet'
+        link.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+        document.head.appendChild(link)
+      }
+      import('leaflet').then((L) => {
+        if (cancelled) return
+        const leaflet:any = L.default || L
+        leaflet.Icon.Default.mergeOptions({
+          iconRetinaUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+          iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+          shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        })
+        if (mapInstance.current) { try { mapInstance.current.remove() } catch{} mapInstance.current=null }
+        const filtered = mapaClientes.filter((c:any)=>{
+          if (mapFiltroCobrador && String(c.cobrador_id)!==String(mapFiltroCobrador)) return false
+          if (mapFiltroEstado==='atrasado' && !c.atrasado) return false
+          if (mapFiltroEstado==='al_corriente' && c.atrasado) return false
+          return c.lat && c.lng
+        })
+        const center = filtered.length ? [parseFloat(filtered[0].lat), parseFloat(filtered[0].lng)] : [20.9585,-102.4720]
+        const map = leaflet.map('admin-map').setView(center,13)
+        mapInstance.current = map
+        leaflet.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19}).addTo(map)
+        const bounds:any[] = []
+        filtered.forEach((c:any)=>{
+          const color = c.atrasado ? '#EA580C' : '#16A34A'
+          const icon = leaflet.divIcon({
+            html:`<div style="width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${color};box-shadow:0 3px 8px rgba(0,0,0,0.35);border:2px solid #fff"></div>`,
+            iconSize:[30,30],iconAnchor:[15,28],className:''
+          })
+          leaflet.marker([parseFloat(c.lat),parseFloat(c.lng)],{icon}).addTo(map)
+            .bindPopup(`<div style="min-width:150px"><b style="font-size:14px">${c.nombre}</b><br><span style="color:#666;font-size:12px">${c.direccion||''}, ${c.colonia||''}</span><div style="margin-top:5px;font-size:12px">Cobrador: <b>${c.cobrador_nombre||'—'}</b></div><div style="font-size:12px">Saldo: <b>$${parseFloat(c.saldo||0).toLocaleString()}</b></div><div style="font-size:12px;color:${color};font-weight:700">${c.atrasado?'Atrasado':'Al corriente'}</div></div>`)
+          bounds.push([parseFloat(c.lat),parseFloat(c.lng)])
+        })
+        if (bounds.length>1) { try { map.fitBounds(bounds,{padding:[40,40]}) } catch{} }
+      }).catch(()=>{})
+    },300)
+    return () => { cancelled=true; clearTimeout(t); if(mapInstance.current){ try{mapInstance.current.remove()}catch{}; mapInstance.current=null } }
+  }, [tab, mapaClientes, mapFiltroCobrador, mapFiltroEstado])
 
   const crearContrato = async (form:any) => {
     const r = await fetch('/api/contratos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)})
@@ -569,6 +656,7 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
     {k:'inicio',    l:'Inicio',     I:Ic.chart},
     {k:'contratos', l:'Contratos',  I:Ic.doc},
     {k:'leads',     l:'Leads',      I:Ic.chat},
+    {k:'mapa',      l:'Mapa',       I:Ic.map},
     {k:'cobradores',l:'Equipo',     I:Ic.team},
     {k:'reportes',  l:'Reportes',   I:Ic.bell},
   ] as const
@@ -787,6 +875,36 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── MAPA GENERAL ── */}
+      {tab==='mapa' && (
+        <div style={{padding:'16px 20px'}}>
+          <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+            <select value={mapFiltroCobrador} onChange={e=>setMapFiltroCobrador(e.target.value)}
+              style={{flex:1,minWidth:140,padding:'10px 12px',borderRadius:10,border:'1.5px solid var(--border)',
+                      background:'var(--surface-2)',color:'var(--text)',fontSize:13,outline:'none'}}>
+              <option value="">Todos los cobradores</option>
+              {(meta.cobradores||[]).map((c:any)=>(<option key={c.id} value={c.id}>{c.nombre}</option>))}
+            </select>
+            <select value={mapFiltroEstado} onChange={e=>setMapFiltroEstado(e.target.value as any)}
+              style={{flex:1,minWidth:120,padding:'10px 12px',borderRadius:10,border:'1.5px solid var(--border)',
+                      background:'var(--surface-2)',color:'var(--text)',fontSize:13,outline:'none'}}>
+              <option value="todos">Todos</option>
+              <option value="al_corriente">Al corriente</option>
+              <option value="atrasado">Atrasados</option>
+            </select>
+          </div>
+          <div style={{display:'flex',gap:14,marginBottom:12,fontSize:11,color:'var(--text-soft)'}}>
+            <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,borderRadius:'50%',background:'#16A34A'}}/>Al corriente</span>
+            <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:10,borderRadius:'50%',background:'#EA580C'}}/>Atrasado</span>
+            <span style={{marginLeft:'auto'}}>{mapaClientes.length} clientes geolocalizados</span>
+          </div>
+          <div id="admin-map" style={{height:'calc(100vh - 280px)',minHeight:340,width:'100%',borderRadius:16,
+            overflow:'hidden',background:'var(--surface-2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <p style={{fontSize:13,color:'var(--text-soft)'}}>Cargando mapa OSM...</p>
+          </div>
         </div>
       )}
 

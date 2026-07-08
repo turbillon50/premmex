@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
         p.clave as paquete, p.nombre as paquete_nombre,
         GREATEST(0, EXTRACT(DAY FROM NOW()-(ct.fecha_inicio+INTERVAL '1 week'*ct.meses_pagados))::int) as dias_mora,
         ct.meses_pagados as semanas_pagadas,
-        NULL::float as lat, NULL::float as lng
+        cl.lat, cl.lng
       FROM contratos ct
       JOIN clientes cl ON cl.id=ct.cliente_id
       JOIN planes p ON p.id=ct.plan_id
