@@ -482,11 +482,12 @@ function ContratoDetalle({ contrato, onClose, onCancelar, onReestructurar, showT
 export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
   const [session, setSession] = useState(false)
   const { theme, toggle } = useTheme()
-  const [tab, setTab] = useState<'inicio'|'contratos'|'cobradores'|'reportes'>('inicio')
+  const [tab, setTab] = useState<'inicio'|'contratos'|'cobradores'|'reportes'|'leads'>('inicio')
   const [stats, setStats] = useState<any>(null)
   const [contratos, setContratos] = useState<any[]>([])
   const [cobradores, setCobradores] = useState<any[]>([])
   const [reportes, setReportes] = useState<any>(null)
+  const [leads, setLeads] = useState<any[]>([])
   const [meta, setMeta] = useState<any>({paquetes:[],cobradores:[]})
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<{msg:string;ok:boolean}|null>(null)
@@ -506,16 +507,18 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
   const fetchAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [s,ct,rp,m] = await Promise.all([
+      const [s,ct,rp,m,ld] = await Promise.all([
         fetch('/api/stats').then(x=>x.json()),
         fetch('/api/contratos').then(x=>x.json()),
         fetch('/api/admin/reportes').then(x=>x.json()),
         fetch('/api/contratos').then(x=>x.json()),
+        fetch('/api/leads').then(x=>x.json()).catch(()=>({leads:[]})),
       ])
       setStats(s)
       setContratos(ct.contratos_list||ct.contratos||s.contratos_list||[])
       setReportes(rp)
       setCobradores(s.cobradores||[])
+      setLeads(ld.leads||[])
       setMeta({planes:m.planes||[],paquetes:m.planes||[],cobradores:m.cobradores||s.cobradores||[],lastContrato:m.lastContrato||null,lastSolicitud:m.lastSolicitud||null})
     } catch(e) { console.error(e) }
     setLoading(false)
@@ -546,6 +549,13 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
     fetchAll()
   }
 
+  const cambiarEstadoLead = async (id:string, estado:string) => {
+    setLeads(ls => ls.map(l => l.id===id ? {...l, estado} : l))
+    try {
+      await fetch('/api/leads',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,estado})})
+    } catch { showT('Error al actualizar',false) }
+  }
+
   if(!session) return <PassLogin onLogin={handleLogin} onBack={onBack}/>
 
   const estColor = (e:string) => e==='liquidado'?'#16A34A':e==='atrasado'||e==='cancelado'?'#EA580C':'var(--brand)'
@@ -554,9 +564,11 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
     c.folio?.toLowerCase().includes(filtro.toLowerCase())
   )
 
+  const nuevosLeads = leads.filter(l=>l.estado==='nuevo').length
   const TABS = [
     {k:'inicio',    l:'Inicio',     I:Ic.chart},
     {k:'contratos', l:'Contratos',  I:Ic.doc},
+    {k:'leads',     l:'Leads',      I:Ic.chat},
     {k:'cobradores',l:'Equipo',     I:Ic.team},
     {k:'reportes',  l:'Reportes',   I:Ic.bell},
   ] as const
@@ -592,12 +604,19 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
                    position:'sticky',top:0,zIndex:30}}>
         {TABS.map(t=>(
           <button key={t.k} onClick={()=>setTab(t.k)}
-            style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,
+            style={{flex:1,position:'relative',display:'flex',flexDirection:'column',alignItems:'center',gap:3,
                     padding:'11px 4px',border:'none',cursor:'pointer',transition:'all .2s',
                     background:'transparent',
                     color:tab===t.k?'#7C3AED':'var(--text-soft)',
                     borderBottom:tab===t.k?'2px solid #7C3AED':'2px solid transparent'}}>
-            <t.I s={20} c={tab===t.k?'#7C3AED':'var(--text-soft)'}/>
+            <div style={{position:'relative'}}>
+              <t.I s={20} c={tab===t.k?'#7C3AED':'var(--text-soft)'}/>
+              {t.k==='leads' && nuevosLeads>0 && (
+                <span style={{position:'absolute',top:-6,right:-10,minWidth:16,height:16,padding:'0 4px',
+                  borderRadius:999,background:'#EA580C',color:'#fff',fontSize:9,fontWeight:700,
+                  display:'flex',alignItems:'center',justifyContent:'center'}}>{nuevosLeads}</span>
+              )}
+            </div>
             <span style={{fontSize:10,fontWeight:tab===t.k?700:500}}>{t.l}</span>
           </button>
         ))}
@@ -762,6 +781,73 @@ export default function AdminApp({ onBack }: { onBack?: ()=>void }) {
                                 textDecoration:'none',fontSize:12,fontWeight:700}}>
                         <Ic.chat s={14} c="#16A34A"/>WhatsApp
                       </a>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── LEADS ── */}
+      {tab==='leads' && (
+        <div style={{padding:'16px 20px'}}>
+          <div style={{fontSize:11,letterSpacing:'.18em',color:'var(--text-soft)',fontWeight:600,marginBottom:12}}>
+            SOLICITUDES DE INFORMES · {leads.length}
+          </div>
+          {leads.length===0 ? (
+            <div style={{padding:'32px',textAlign:'center',color:'var(--text-soft)',background:'var(--surface)',
+                         borderRadius:16,border:'1px solid var(--border)',fontSize:14}}>
+              Aún no hay solicitudes. Los leads de la landing aparecerán aquí.
+            </div>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {leads.map((l:any,i:number)=>{
+                const estColores:Record<string,string> = {nuevo:'#EA580C',contactado:'#0EA5E9',convertido:'#16A34A',descartado:'var(--text-soft)'}
+                const ec = estColores[l.estado]||'var(--text-soft)'
+                const tel = (l.telefono||'').replace(/\D/g,'')
+                return (
+                  <motion.div key={l.id} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay:i*.03}}
+                    style={{padding:'14px 15px',background:'var(--surface)',border:'1px solid var(--border)',
+                            borderLeft:`3px solid ${ec}`,borderRadius:14}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
+                      <div>
+                        <div style={{fontSize:14,fontWeight:700,color:'var(--text)'}}>{l.nombre}</div>
+                        <div style={{fontSize:11,color:'var(--text-soft)',marginTop:2}}>
+                          {l.domicilio||'—'} · {new Date(l.created_at).toLocaleDateString('es-MX',{day:'numeric',month:'short'})}
+                        </div>
+                      </div>
+                      <div style={{fontSize:10,padding:'3px 9px',borderRadius:999,fontWeight:700,
+                                    background:`${ec}18`,color:ec,textTransform:'capitalize'}}>{l.estado}</div>
+                    </div>
+                    {l.mensaje && <div style={{fontSize:12,color:'var(--text-soft)',marginBottom:10,fontStyle:'italic'}}>“{l.mensaje}”</div>}
+                    {tel && (
+                      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
+                        <a href={`tel:${tel}`} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+                          padding:'8px',borderRadius:10,background:'rgba(14,165,233,0.1)',color:'#0EA5E9',
+                          textDecoration:'none',fontSize:12,fontWeight:700}}>
+                          <Ic.phone s={14} c="#0EA5E9"/>{l.telefono}
+                        </a>
+                        <a href={`https://wa.me/52${tel}`} target="_blank" rel="noreferrer"
+                          style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,
+                          padding:'8px',borderRadius:10,background:'rgba(22,163,74,0.1)',color:'#16A34A',
+                          textDecoration:'none',fontSize:12,fontWeight:700}}>
+                          <Ic.chat s={14} c="#16A34A"/>WhatsApp
+                        </a>
+                      </div>
+                    )}
+                    <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                      {['nuevo','contactado','convertido','descartado'].map(es=>(
+                        <button key={es} onClick={()=>cambiarEstadoLead(l.id,es)}
+                          style={{flex:1,minWidth:64,padding:'7px 4px',borderRadius:9,cursor:'pointer',
+                            fontSize:11,fontWeight:600,textTransform:'capitalize',transition:'all .2s',
+                            border:`1px solid ${l.estado===es?(estColores[es]):'var(--border)'}`,
+                            background:l.estado===es?`${estColores[es]}18`:'var(--surface-2)',
+                            color:l.estado===es?estColores[es]:'var(--text-soft)'}}>
+                          {es}
+                        </button>
+                      ))}
                     </div>
                   </motion.div>
                 )
