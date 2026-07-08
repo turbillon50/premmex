@@ -56,7 +56,7 @@ function PassLogin({ onLogin, onBack }: { onLogin:(p:string)=>Promise<void>; onB
                     opacity:(loading||!pass)?.5:1,display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
             {loading?'Verificando...':<>Entrar <Ic.arrow s={17} c="#fff"/></>}
           </button>
-          <p style={{textAlign:'center',fontSize:12,color:'var(--text-soft)'}}>Demo: premmex2025</p>
+          <p style={{textAlign:'center',fontSize:12,color:'var(--text-soft)'}}>Demo: premmex2026</p>
           {onBack && (
             <button onClick={onBack} style={{display:'flex',alignItems:'center',justifyContent:'center',
               gap:6,padding:'10px',background:'none',border:'none',cursor:'pointer',

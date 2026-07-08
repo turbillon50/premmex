@@ -131,7 +131,7 @@ export default function CobradorApp({ onBack }: { onBack?: ()=>void }) {
   if (!session) return <PinLogin title="PREMMEX" subtitle="Acceso cobrador de campo" color="#0EA5E9" onLogin={handleLogin}
     extra={
       <>
-        <p className="text-xs text-center mb-4" style={{color:'var(--text-soft)'}}>Demo: 1111 · 2222 · 3333 · 4444</p>
+        <p className="text-xs text-center mb-4" style={{color:'var(--text-soft)'}}>Demo: 0001 · 0002 · 0003</p>
         {onBack && <button onClick={onBack} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:6,width:'100%',marginBottom:8,padding:'10px',background:'none',border:'none',cursor:'pointer',color:'var(--text-soft)',fontSize:13}}><Ic.home s={14} c="var(--text-soft)"/>Volver al inicio</button>}
       </>
     }/>
